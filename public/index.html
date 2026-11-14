@@ -25,11 +25,11 @@ h1{font-size:28px;margin:4px 0 2px;letter-spacing:-.02em}h2{font-size:18px;margi
 .item:last-child{border-bottom:0}.item small{color:var(--mut);display:block}
 .tag{display:inline-block;font-size:12px;border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;background:var(--leaf2);color:var(--leaf);font-weight:600}
 .tag.flag{background:var(--flag2);color:var(--flag)}.tag.warn{background:var(--sun2);color:var(--sun)}
-button,select,input[type=text],textarea{font:inherit;color:var(--fg)}
+button,select,input[type=text],input[type=number],textarea{font:inherit;color:var(--fg)}
 button{border:1px solid var(--leaf);background:var(--leaf);color:var(--card);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600}
 button.ghost{background:transparent;color:var(--leaf)}button.sm{padding:5px 10px;font-size:14px}
 button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-select,textarea,input[type=text]{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px;width:100%}
+select,textarea,input[type=text],input[type=number]{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px;width:100%}
 .flex{display:flex;gap:8px;align-items:center}.flex>select{flex:1}
 .note{background:var(--flag2);border-left:4px solid var(--flag);padding:10px 12px;border-radius:6px;margin:8px 0;font-size:14px}
 .note.good{background:var(--leaf2);border-color:var(--leaf)}.note.warn{background:var(--sun2);border-color:var(--sun)}
@@ -70,7 +70,7 @@ const R=[
 const F=Object.fromEntries(R.map(x=>[x.id,x]));
 const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
 const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
-const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:''};
+const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
 try{const sv=JSON.parse(localStorage.getItem('eatclean')||'null');if(sv){sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
 async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
@@ -89,16 +89,61 @@ function pairs(){
  if(iron.length&&!vc.length)o.push(['warn',`${iron[0].name} has iron. Add a vitamin C food such as an orange or red pepper to help absorb it.`]);
  if(iron.length&&tan.length)o.push(['warn',`${tan[0].name} contains tannins and polyphenols that can reduce iron uptake. Space it apart from ${iron[0].name} when you can.`]);
  return o}
-function workout(txt){
- const s=txt.toLowerCase(),m=s.match(/(\d+)\s*(hours?|hrs?|h|minutes?|mins?|m)\b/);
- let min=m?+m[1]*(/^h/.test(m[2])?60:1):null;
- const kind=/lift|strength|weight|gym|resist/.test(s)?'strength':/run|cycl|bike|swim|row|cardio|hiit/.test(s)?'endurance':'light';
- const have=ids=>ids.map(i=>F[i].name+(S.pantry.includes(i)?' (in pantry)':''));
- let pre,post;
- if(kind==='endurance'){pre=(min&&min>=60)?['oats','banana']:['banana','almonds'];post=['yogurt','banana','oats']}
- else if(kind==='strength'){pre=['banana','oats'];post=['eggs','yogurt','banana']}
- else{pre=['banana'];post=['yogurt','orange']}
- return{kind,min,pre:have(pre),post:have(post)}}
+const WK_LABELS={running:'Running',cycling:'Cycling',strength:'Strength / weights',hiit:'HIIT',swimming:'Swimming',yoga:'Yoga / mobility'};
+const MUSCLE_LABELS={cardio:'Cardio (not muscle-specific)',legs:'Legs',chest:'Chest',back:'Back',arms:'Arms',shoulders:'Shoulders',core:'Core',full_body:'Full body'};
+function pantryName(id){return F[id]?F[id].name+(S.pantry.includes(id)?' (in pantry)':''):null}
+function pickPantry(ids){
+ return ids.map(id=>pantryName(id)||(F[id]&&F[id].name)||String(id));
+}
+function postWorkoutPlanLocal(type,min,intensity,muscle){
+ const long=min>=60, hi=intensity==='high';
+ let foods=[],focus=[],notes=[];
+ if(type==='strength'){
+  focus=['protein','carbs'];
+  const m={
+    legs:['eggs','yogurt','lentils','banana'],
+    chest:['eggs','yogurt','oats'],
+    back:['eggs','lentils','yogurt'],
+    arms:['yogurt','eggs','almonds'],
+    shoulders:['eggs','yogurt','oats'],
+    core:['yogurt','banana','spinach'],
+    full_body:['eggs','yogurt','oats','banana'],
+    cardio:['eggs','yogurt','oats']
+  };
+  foods=m[muscle]||m.full_body;
+  notes.push('Prioritize protein and carbs to support muscle repair after resistance training.');
+ }else if(type==='hiit'){
+  focus=['carbs','protein','fluids'];
+  foods=hi?['banana','yogurt','oats','orange']:['banana','yogurt','orange'];
+  notes.push('HIIT depletes glycogen quickly—combine carbs with moderate protein.');
+ }else if(type==='running'||type==='cycling'||type==='swimming'){
+  focus=long?['carbs','protein','fluids']:['carbs','protein'];
+  foods=long?['banana','oats','yogurt','orange']:['banana','yogurt','almonds'];
+  notes.push('Endurance sessions benefit from carbs to replace glycogen plus protein for recovery.');
+ }else{
+  focus=['balanced snack','fluids'];
+  foods=['yogurt','banana','orange'];
+  notes.push('Light movement needs a smaller, easy-to-digest snack.');
+ }
+ if(hi)notes.push('Higher intensity: eat within about 60 minutes post-workout.');
+ const portions=foods.slice(0,4).map(id=>{
+  const f=F[id];
+  if(!f)return id;
+  let q=1;
+  if(type==='strength'&&f.p>=10)q=1;
+  else if(long)q=1.5;
+  return `${f.name} (${f.srv}${q>1?' × '+r1(q):''})`;
+ });
+ return{
+  title:'Suggested post-workout plate',
+  meal_items:portions,
+  pantry_items:pickPantry(foods),
+  macro_focus:focus,
+  notes,
+  summary:`${WK_LABELS[type]||type} · ${min} min · ${intensity} intensity · ${MUSCLE_LABELS[muscle]||muscle}`,
+  disclaimer:'General wellness suggestion only—not individualized sports nutrition or medical advice.'
+ };
+}
 function view(){
  const t=tot();
  if(S.tab==='log'){
@@ -130,16 +175,30 @@ function view(){
   </div>
   <div id="barcodeout"></div>
 </div>
-<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>`}
+<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>
+  <div class="card"><h2>Post-workout meal plan</h2>
+  <p class="sub">Pick workout details—we'll suggest a post-workout meal from intensity and target muscles.</p>
+  <label class="sub" for="wkMin">Duration (minutes)</label>
+  <input id="wkMin" type="number" min="5" max="300" step="5" value="${S.wkMin}" aria-label="Workout duration in minutes">
+  <label class="sub" for="wkType" style="margin-top:8px;display:block">Workout type</label>
+  <select id="wkType" aria-label="Workout type">${Object.entries(WK_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkType===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
+  <label class="sub" for="wkIntensity" style="margin-top:8px;display:block">Intensity</label>
+  <select id="wkIntensity" aria-label="Workout intensity"><option value="low" ${S.wkIntensity==='low'?'selected':''}>Low</option><option value="moderate" ${S.wkIntensity==='moderate'?'selected':''}>Moderate</option><option value="high" ${S.wkIntensity==='high'?'selected':''}>High</option></select>
+  <label class="sub" for="wkMuscle" style="margin-top:8px;display:block">Target muscle group</label>
+  <select id="wkMuscle" aria-label="Target muscle group">${Object.entries(MUSCLE_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkMuscle===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
+  <div style="margin-top:10px"><button data-act="wkmeal">Suggest post-workout meal</button></div>
+  ${S.msgWk?`<p class="sub">${esc(S.msgWk)}</p>`:''}
+  ${S.wkMeal?`<div class="note good"><b>${esc(S.wkMeal.title)}</b><br><small>${esc(S.wkMeal.summary)}</small>
+  <p><b>Focus:</b> ${esc((S.wkMeal.macro_focus||[]).join(', '))}</p>
+  <p><b>Suggested foods:</b> ${esc((S.wkMeal.meal_items||[]).join('; '))}</p>
+  ${(S.wkMeal.pantry_items||[]).length?`<p><b>From your pantry:</b> ${esc(S.wkMeal.pantry_items.join(', '))}</p>`:''}
+  ${(S.wkMeal.notes||[]).map(n=>`<p class="sub">${esc(n)}</p>`).join('')}
+  <p class="fine">${esc(S.wkMeal.disclaimer||'')}</p></div>`:''}</div>`}
  if(S.tab==='gaps'){
   const g=gaps(),all=['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar ${t[k]/T[k]<.6?'low':''}"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${Math.round(t[k]/T[k]*100)}%</span></div>`).join('');
-  const w=S.wres;
   return `<h1>Gaps</h1><p class="sub">What today’s log is missing, with pantry-first ideas.</p>
   <div class="label"><div class="big"><span>Today's Log</span></div>${all}</div>
-  ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You’re above 60% on every tracked nutrient.</div>'}
-  <div class="card"><h2>Workout fuel</h2><label class="sub" for="wk">Describe your workout (type and duration)</label>
-  <div class="flex"><input id="wk" type="text" value="${esc(S.wtext)}" placeholder="45 minute run"><button data-act="wk">Suggest</button></div>
-  ${S.msg2?`<p class="sub">${esc(S.msg2)}</p>`:''}${w?`<div class="note good"><b>Before:</b> ${esc(w.pre.join(', '))}<br><b>After:</b> ${esc(w.post.join(', '))}<br><small>${esc(w.kind)} workout${w.min?`, ${w.min} min`:''}</small></div>`:''}</div>`}
+  ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You’re above 60% on every tracked nutrient.</div>'}`
  if(S.tab==='pantry'){
   return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first.</p>
   <div class="card"><div class="flex"><select id="padd" aria-label="Add to pantry">${opts()}</select><button data-act="pantryadd">Add</button></div></div>
@@ -248,7 +307,16 @@ document.addEventListener('click',e=>{
  if(a==='padd'){const id=b.dataset.id;if(!S.pantry.includes(id))S.pantry.push(id)}
  if(a==='pantryadd'){const id=v('padd').value;if(!S.pantry.includes(id))S.pantry.push(id)}
  if(a==='prm')S.pantry=S.pantry.filter(i=>i!==b.dataset.id);
- if(a==='wk'){S.wtext=v('wk').value;S.wres=null;S.msg2='Thinking…';api('/api/workout',{text:S.wtext,pantry:S.pantry.map(i=>F[i].name)}).then(r=>{S.wres=r;S.msg2=''}).catch(()=>{S.wres=workout(S.wtext);S.msg2='AI unavailable, showing a basic suggestion.'}).then(render)}
+ if(a==='wkmeal'){
+  S.wkMin=Math.max(5,Math.min(300,+v('wkMin').value||45));
+  S.wkType=v('wkType').value;
+  S.wkIntensity=v('wkIntensity').value;
+  S.wkMuscle=v('wkMuscle').value;
+  S.wkMeal=null;S.msgWk='Building meal plan…';
+  const body={type:S.wkType,durationMinutes:S.wkMin,intensity:S.wkIntensity,muscleGroup:S.wkMuscle,pantry:S.pantry.map(i=>F[i].name)};
+  api('/api/workout-meal',body).then(r=>{S.wkMeal=r;S.msgWk=''}).catch(()=>{S.wkMeal=postWorkoutPlanLocal(S.wkType,S.wkMin,S.wkIntensity,S.wkMuscle);S.msgWk='Using on-device rules (Gemini unavailable).'}).then(render);
+  return;
+ }
  if(a==='srch'){S.q=v('q').value.trim();if(S.q){S.sr='loading';api('/api/search?q='+encodeURIComponent(S.q)).then(r=>{S.sr=r}).catch(()=>{S.sr=[]}).then(render)}}
  if(a==='addr'){const f=S.sr[+b.dataset.i];reg(f);const x=S.log.find(l=>l.id===f.id);x?x.q++:S.log.push({id:f.id,q:1});S.sr=null;S.q=''}
  render()});
