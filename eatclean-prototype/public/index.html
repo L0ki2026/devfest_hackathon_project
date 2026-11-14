@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>eatclean</title>
+<style>
+:root{--bg:#f1f5ef;--card:#fff;--fg:#17211b;--mut:#5d6b62;--leaf:#2f6b4f;--leaf2:#dcebe2;--flag:#b3134f;--flag2:#fbe3ec;--sun:#b7790a;--sun2:#fbefd2;--bd:#cfd9d1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1511;--card:#18211b;--fg:#e6efe8;--mut:#9aaba0;--leaf:#6fc59a;--leaf2:#1d3328;--flag:#ff7fa8;--flag2:#3a1626;--sun:#f0b84a;--sun2:#34280d;--bd:#2d3b31;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1511;--card:#18211b;--fg:#e6efe8;--mut:#9aaba0;--leaf:#6fc59a;--leaf2:#1d3328;--flag:#ff7fa8;--flag2:#3a1626;--sun:#f0b84a;--sun2:#34280d;--bd:#2d3b31;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 "Avenir Next","Segoe UI",system-ui,sans-serif;min-height:100vh}
+main{max-width:480px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:28px;margin:4px 0 2px;letter-spacing:-.02em}h2{font-size:18px;margin:0 0 8px}
+.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin:0 0 12px}
+.label{border:2px solid var(--fg);border-radius:4px;padding:10px 12px;background:var(--card);margin:0 0 12px}
+.label .big{display:flex;justify-content:space-between;align-items:baseline;border-bottom:8px solid var(--fg);padding-bottom:6px;margin-bottom:6px}
+.label .big b{font-size:34px;line-height:1}
+.row{display:grid;grid-template-columns:78px 1fr 64px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd);font-size:14px}
+.row:last-child{border-bottom:0}
+.bar{height:8px;background:var(--leaf2);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--leaf)}
+.bar.low i{background:var(--sun)}.num{text-align:right;color:var(--mut);font-variant-numeric:tabular-nums}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bd)}
+.item:last-child{border-bottom:0}.item small{color:var(--mut);display:block}
+.tag{display:inline-block;font-size:12px;border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;background:var(--leaf2);color:var(--leaf);font-weight:600}
+.tag.flag{background:var(--flag2);color:var(--flag)}.tag.warn{background:var(--sun2);color:var(--sun)}
+button,select,input[type=text],textarea{font:inherit;color:var(--fg)}
+button{border:1px solid var(--leaf);background:var(--leaf);color:var(--card);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600}
+button.ghost{background:transparent;color:var(--leaf)}button.sm{padding:5px 10px;font-size:14px}
+button:focus-visible,select:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+select,textarea,input[type=text]{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:9px;width:100%}
+.flex{display:flex;gap:8px;align-items:center}.flex>select{flex:1}
+.note{background:var(--flag2);border-left:4px solid var(--flag);padding:10px 12px;border-radius:6px;margin:8px 0;font-size:14px}
+.note.good{background:var(--leaf2);border-color:var(--leaf)}.note.warn{background:var(--sun2);border-color:var(--sun)}
+.pre{width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin:8px 0}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav div{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav button{background:none;border:0;border-radius:0;color:var(--mut);padding:12px 4px;font-size:14px}
+nav button[aria-current=page]{color:var(--leaf);box-shadow:inset 0 3px 0 var(--leaf)}
+.empty{color:var(--mut);padding:10px 0}.fine{color:var(--mut);font-size:12px;margin-top:14px}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav aria-label="Sections"><div id="nav"></div></nav>
+<script>
+const T={kcal:2000,p:60,c:250,f:65,fib:28,fe:18,vc:90,ca:1000};
+const U={kcal:'kcal',p:'g',c:'g',f:'g',fib:'g',fe:'mg',vc:'mg',ca:'mg'};
+const N={kcal:'Calories',p:'Protein',c:'Carbs',f:'Fat',fib:'Fiber',fe:'Iron',vc:'Vitamin C',ca:'Calcium'};
+// id,name,serving,kcal,p,c,f,fib,fe,vc,ca,ingredients,tag
+const R=[
+['spinach','Spinach','1 cup cooked',41,5,7,.5,4,6.4,17,245,'',''],
+['lentils','Lentils','1 cup cooked',230,18,40,.8,16,6.6,3,38,'',''],
+['orange','Orange','1 medium',62,1.2,15,.2,3,.1,70,52,'',''],
+['pepper','Red bell pepper','1 medium',37,1.2,7,.4,2.5,.5,152,10,'',''],
+['yogurt','Plain Greek yogurt','3/4 cup',100,17,6,.7,0,0,0,180,'',''],
+['almonds','Almonds','1 oz',164,6,6,14,3.5,1.1,0,76,'',''],
+['banana','Banana','1 medium',105,1.3,27,.4,3.1,.3,10,6,'',''],
+['oats','Rolled oats','1/2 cup dry',150,5,27,3,4,2,0,20,'',''],
+['eggs','Eggs','2 large',143,12.6,.7,9.5,0,1.8,0,56,'',''],
+['coffee','Coffee','1 cup',2,.3,0,0,0,.1,0,5,'','tannin'],
+['tea','Green tea','1 cup',2,0,0,0,0,0,0,0,'','tannin'],
+['cocoa','Dark chocolate','1 oz',170,2,13,12,3,3.4,0,20,'','tannin'],
+['fruitsnack','Fruit snacks (packaged)','1 pouch',80,0,19,0,0,0,0,0,'Corn syrup, sugar, modified corn starch, gelatin, Red 40, Yellow 5, Blue 1, natural and artificial flavors',''],
+['puffs','Cheese puffs (packaged)','1 oz',160,2,15,10,1,.3,0,20,'Enriched cornmeal, vegetable oil, whey, Yellow 6, artificial flavor, BHT',''],
+['bar','Granola bar (packaged)','1 bar',140,3,24,4,1,1,0,20,'Oats, high fructose corn syrup, palm oil, soy lecithin, BHT','']
+].map(a=>({id:a[0],name:a[1],srv:a[2],kcal:a[3],p:a[4],c:a[5],f:a[6],fib:a[7],fe:a[8],vc:a[9],ca:a[10],ing:a[11],tag:a[12]}));
+const F=Object.fromEntries(R.map(x=>[x.id,x]));
+const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
+const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
+const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:''};
+try{const sv=JSON.parse(localStorage.getItem('eatclean')||'null');if(sv){sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
+async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
+function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
+function srch(){if(!S.sr)return'';if(S.sr==='loading')return'<div class="empty">Searching…</div>';if(!S.sr.length)return'<div class="empty">No matches. Try a simpler name.</div>';return S.sr.map((f,i)=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.src)} · ${f.kcal} kcal, ${f.p}g protein per 100 g</small></div><button class="ghost sm" data-act="addr" data-i="${i}">Add</button></div>`).join('')}
+async function identify(f){if(!f)return;S.msg='Identifying items…';render();try{const b64=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(',')[1]);r.onerror=no;r.readAsDataURL(f)});const j=await api('/api/identify',{image:b64,mime:f.type||'image/jpeg'});const items=[];for(const n of j.items.slice(0,6)){const hit=(await api('/api/search?q='+encodeURIComponent(n.name)))[0];if(hit){reg(hit);items.push({id:hit.id,q:1,on:true})}}S.det=items.length?{url:URL.createObjectURL(f),items}:null;S.msg=items.length?'':'No food recognized. Try a clearer photo.'}catch(err){S.msg='Could not analyze photo: '+err.message}render()}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const flags=f=>BAD.filter(b=>f.ing.toLowerCase().includes(b[0])).map(b=>b[1]);
+const tot=()=>{const t={};for(const k in T)t[k]=0;S.log.forEach(e=>{for(const k in T)t[k]+=F[e.id][k]*e.q});return t};
+const r1=n=>Math.round(n*10)/10;
+const opts=()=>R.map(f=>`<option value="${f.id}">${esc(f.name)} (${esc(f.srv)})</option>`).join('');
+function gaps(){const t=tot();return['p','fib','fe','vc','ca'].filter(k=>t[k]/T[k]<.6)}
+function suggest(k){return R.filter(f=>!flags(f).length&&f[k]>0).map(f=>({f,s:f[k]/Math.max(f.kcal,40)+(S.pantry.includes(f.id)?1:0)})).sort((a,b)=>b.s-a.s).slice(0,3).map(x=>x.f)}
+function pairs(){
+ const ids=S.log.map(e=>F[e.id]),iron=ids.filter(f=>f.fe>=1.8),vc=ids.filter(f=>f.vc>=15),tan=ids.filter(f=>f.tag==='tannin'),o=[];
+ if(iron.length&&vc.length)o.push(['good',`Good pairing: ${iron[0].name} with ${vc[0].name}. Vitamin C improves non-heme iron absorption.`]);
+ if(iron.length&&!vc.length)o.push(['warn',`${iron[0].name} has iron. Add a vitamin C food such as an orange or red pepper to help absorb it.`]);
+ if(iron.length&&tan.length)o.push(['warn',`${tan[0].name} contains tannins and polyphenols that can reduce iron uptake. Space it apart from ${iron[0].name} when you can.`]);
+ return o}
+function workout(txt){
+ const s=txt.toLowerCase(),m=s.match(/(\d+)\s*(hours?|hrs?|h|minutes?|mins?|m)\b/);
+ let min=m?+m[1]*(/^h/.test(m[2])?60:1):null;
+ const kind=/lift|strength|weight|gym|resist/.test(s)?'strength':/run|cycl|bike|swim|row|cardio|hiit/.test(s)?'endurance':'light';
+ const have=ids=>ids.map(i=>F[i].name+(S.pantry.includes(i)?' (in pantry)':''));
+ let pre,post;
+ if(kind==='endurance'){pre=(min&&min>=60)?['oats','banana']:['banana','almonds'];post=['yogurt','banana','oats']}
+ else if(kind==='strength'){pre=['banana','oats'];post=['eggs','yogurt','banana']}
+ else{pre=['banana'];post=['yogurt','orange']}
+ return{kind,min,pre:have(pre),post:have(post)}}
+function view(){
+ const t=tot();
+ if(S.tab==='log'){
+  const rows=['kcal','p','c','f'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${r1(t[k])}${U[k]}</span></div>`).join('');
+  const det=S.det?`<div class="card"><h2>Confirm what we found</h2><img class="pre" src="${S.det.url}" alt="Your photo">
+   <p class="sub">Detected by Gemini, nutrients from USDA and Open Food Facts. Check items and portions before logging.</p>
+   ${S.det.items.map((d,i)=>`<div class="item"><label><input type="checkbox" data-chk="${i}" ${d.on?'checked':''}> ${esc(F[d.id].name)}<small>${esc(F[d.id].srv)} × ${d.q}</small></label><span><button class="ghost sm" data-act="dq" data-i="${i}" data-d="-.5" aria-label="Smaller portion">−</button> <button class="ghost sm" data-act="dq" data-i="${i}" data-d=".5" aria-label="Larger portion">+</button></span></div>`).join('')}
+   <div class="flex" style="margin-top:10px"><button data-act="confirm">Add to log</button><button class="ghost" data-act="cancel">Cancel</button></div></div>`:'';
+  return `<h1>Today</h1><p class="sub">Quality and nutrients, tracked together.</p>
+  <div class="label"><div class="big"><span>Calories</span><b>${Math.round(t.kcal)}</b></div>${rows}</div>
+  <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div>
+  <div style="margin-top:10px"><label class="sub" for="ph">Or snap a photo of your groceries or meal</label><input id="ph" type="file" accept="image/*" capture="environment"></div></div>${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}${det}
+  <div class="card"><h2>Logged</h2>${S.log.length?S.log.map((e,i)=>{const f=F[e.id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} × ${e.q} · ${Math.round(f.kcal*e.q)} kcal</small>${fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}</div><button class="ghost sm" data-act="rm" data-i="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Nothing logged yet. Add a food above.</div>'}</div>`}
+ if(S.tab==='quality'){
+  const bad=S.log.filter(e=>flags(F[e.id]).length);
+  return `<h1>Food Quality</h1><p class="sub">Review ingredient quality, identify additives, and find practical alternatives.</p>
+  <div class="card"><h2>Ingredient quality in today’s log</h2>${bad.length?bad.map(e=>{const f=F[e.id];return`<div class="item"><div><b>${esc(f.name)}</b><small>${esc(f.ing)}</small>${flags(f).map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}<div class="note good"><b>Cleaner swap:</b> ${esc(ALT[f.id]||'Look for a version without these additives.')}</div></div></div>`}).join(''):'<div class="note good">No flagged additives found in today’s log.</div>'}</div>
+  <div class="card"><h2>Check a packaged food</h2><div class="flex"><select id="chk" aria-label="Packaged food">${R.filter(f=>f.ing).map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><button data-act="check">Check</button></div><div id="chkout"></div></div>
+  
+<div class="card">
+  <h2>Look up packaged food by barcode</h2>
+  <p class="sub">Enter the barcode printed on the package.</p>
+  <div class="flex">
+    <input id="barcode" type="text" inputmode="numeric"
+      autocomplete="off" maxlength="14"
+      placeholder="Enter UPC or EAN barcode"
+      aria-label="Product barcode">
+    <button data-act="barcode">Look up</button>
+  </div>
+  <div id="barcodeout"></div>
+</div>
+<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>`}
+ if(S.tab==='gaps'){
+  const g=gaps(),all=['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar ${t[k]/T[k]<.6?'low':''}"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${Math.round(t[k]/T[k]*100)}%</span></div>`).join('');
+  const w=S.wres;
+  return `<h1>Gaps</h1><p class="sub">What today’s log is missing, with pantry-first ideas.</p>
+  <div class="label"><div class="big"><span>Today's Log</span></div>${all}</div>
+  ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You’re above 60% on every tracked nutrient.</div>'}
+  <div class="card"><h2>Workout fuel</h2><label class="sub" for="wk">Describe your workout (type and duration)</label>
+  <div class="flex"><input id="wk" type="text" value="${esc(S.wtext)}" placeholder="45 minute run"><button data-act="wk">Suggest</button></div>
+  ${S.msg2?`<p class="sub">${esc(S.msg2)}</p>`:''}${w?`<div class="note good"><b>Before:</b> ${esc(w.pre.join(', '))}<br><b>After:</b> ${esc(w.post.join(', '))}<br><small>${esc(w.kind)} workout${w.min?`, ${w.min} min`:''}</small></div>`:''}</div>`}
+ if(S.tab==='pantry'){
+  return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first.</p>
+  <div class="card"><div class="flex"><select id="padd" aria-label="Add to pantry">${opts()}</select><button data-act="pantryadd">Add</button></div></div>
+  <div class="card"><h2>At home</h2>${S.pantry.length?S.pantry.map(id=>{const f=F[id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><button class="ghost sm" data-act="prm" data-id="${id}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Your pantry is empty. Add what you bought this week.</div>'}</div>
+  <div class="card"><h2>Nutrients in your pantry</h2>${(()=>{const p={};Object.keys(T).forEach(k=>p[k]=0);S.pantry.forEach(i=>Object.keys(T).forEach(k=>p[k]+=F[i][k]));return['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><span></span><span class="num">${r1(p[k])}${U[k]}</span></div>`).join('')})()}<p class="fine">Total across one serving of each item.</p></div>`}
+}
+function render(){
+ try{localStorage.setItem('eatclean',JSON.stringify({log:S.log,pantry:S.pantry,foods:R.filter(f=>f.src)}))}catch(e){}
+ document.getElementById('app').innerHTML=view()+'<p class="fine">Reference targets are generic adult values. Search results come from USDA FoodData Central and Open Food Facts (per 100 g); photo and workout suggestions use Gemini.</p>';
+ document.getElementById('nav').innerHTML=[['log','Log'],['quality','Quality'],['gaps','Gaps'],['pantry','Pantry']].map(a=>`<button data-tab="${a[0]}" ${S.tab===a[0]?'aria-current="page"':''}>${a[1]}</button>`).join('');
+ const ph=document.getElementById('ph');if(ph)ph.onchange=e=>identify(e.target.files[0]);
+ document.querySelectorAll('[data-chk]').forEach(c=>c.onchange=()=>{S.det.items[c.dataset.chk].on=c.checked});
+}
+document.addEventListener('click',e=>{
+ const tb=e.target.closest('[data-tab]');if(tb){S.tab=tb.dataset.tab;render();return}
+ const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,v=id=>document.getElementById(id);
+ if(a==='add'){const id=v('add').value,x=S.log.find(l=>l.id===id);x?x.q++:S.log.push({id,q:1})}
+ if(a==='rm')S.log.splice(+b.dataset.i,1);
+ if(a==='dq'){const d=S.det.items[+b.dataset.i];d.q=Math.max(.5,d.q+ +b.dataset.d)}
+ if(a==='confirm'){S.det.items.filter(d=>d.on).forEach(d=>{const x=S.log.find(l=>l.id===d.id);x?x.q+=d.q:S.log.push({id:d.id,q:d.q})});S.det=null}
+ if(a==='cancel')S.det=null;
+ if(a==='check'){const f=F[v('chk').value],fl=flags(f);render();v('chk').value=f.id;v('chkout').innerHTML=fl.length?`<div class="note"><b>${fl.length} flagged:</b> ${fl.map(esc).join(', ')}<br>${esc(ALT[f.id]||'')}</div>`:'<div class="note good">No flagged ingredients.</div>';return}
+
+  if(a==='barcode'){
+    const code=v('barcode').value.trim();
+    const out=v('barcodeout');
+
+    if(!/^\d{8,14}$/.test(code)){
+      out.innerHTML='<div class="note warn">Enter a valid barcode containing 8 to 14 digits.</div>';
+      return;
+    }
+
+    out.innerHTML='<div class="empty">Looking up product...</div>';
+
+    api('/api/barcode/'+encodeURIComponent(code))
+      .then(p=>{
+        const n=p.nutriments||{};
+
+        const fmt=(key,unit,scale=1)=>{
+          if(n[key]===undefined||n[key]===null||n[key]==='') return 'Not reported';
+          const value=Number(n[key])*scale;
+          if(!Number.isFinite(value)) return 'Not reported';
+          return `${Math.round(value*10)/10} ${unit}`;
+        };
+
+        const items=[
+          ['Calories','energy-kcal_100g','kcal'],
+          ['Protein','proteins_100g','g'],
+          ['Carbs','carbohydrates_100g','g'],
+          ['Total fat','fat_100g','g'],
+          ['Saturated fat','saturated-fat_100g','g'],
+          ['Fiber','fiber_100g','g'],
+          ['Total sugars','sugars_100g','g'],
+          ['Sodium','sodium_100g','mg',1000]
+        ];
+
+        const rows=items.map(([label,key,unit,scale=1])=>
+          `<div class="row"><span>${label}</span><span></span><span class="num">${fmt(key,unit,scale)}</span></div>`
+        ).join('');
+
+        const ingredients=p.ingredients_text||'Not reported';
+        const allergens=p.allergens||p.allergens_en||'Not reported';
+        const additives=Array.isArray(p.additives_tags)&&p.additives_tags.length
+          ? p.additives_tags.join(', ')
+          : 'Not reported';
+
+        out.innerHTML=`
+          <div class="item">
+            <div>
+              <b>${esc(p.product_name||'Product name not reported')}</b>
+              <small>${esc(p.brands||'Brand not reported')}</small>
+              <small>Serving size: ${esc(p.serving_size||'Not reported')}</small>
+            </div>
+          </div>
+          <div class="label">
+            <div class="big">
+              <span>Nutrition facts</span>
+              <b style="font-size:15px">Per 100 g</b>
+            </div>
+            ${rows}
+          </div>
+          <div class="note">
+            <b>Ingredients</b>
+            <p>${esc(ingredients)}</p>
+          </div>
+          <div class="note">
+            <b>Allergens</b>
+            <p>${esc(allergens)}</p>
+          </div>
+          <div class="note good">
+            <b>Product information</b>
+            <p>Nutri-Score: ${esc(p.nutriscore_grade||'Not reported')}</p>
+            <p>NOVA group: ${esc(p.nova_group??'Not reported')}</p>
+            <p>Additives: ${esc(additives)}</p>
+          </div>
+          <p class="fine">Source: Open Food Facts. Product information may be incomplete or outdated.</p>
+        `;
+      })
+      .catch(error=>{
+        out.innerHTML=`<div class="note warn">${esc(error.message||'Could not retrieve this product.')}</div>`;
+      });
+
+    return;
+  }
+
+ if(a==='padd'){const id=b.dataset.id;if(!S.pantry.includes(id))S.pantry.push(id)}
+ if(a==='pantryadd'){const id=v('padd').value;if(!S.pantry.includes(id))S.pantry.push(id)}
+ if(a==='prm')S.pantry=S.pantry.filter(i=>i!==b.dataset.id);
+ if(a==='wk'){S.wtext=v('wk').value;S.wres=null;S.msg2='Thinking…';api('/api/workout',{text:S.wtext,pantry:S.pantry.map(i=>F[i].name)}).then(r=>{S.wres=r;S.msg2=''}).catch(()=>{S.wres=workout(S.wtext);S.msg2='AI unavailable, showing a basic suggestion.'}).then(render)}
+ if(a==='srch'){S.q=v('q').value.trim();if(S.q){S.sr='loading';api('/api/search?q='+encodeURIComponent(S.q)).then(r=>{S.sr=r}).catch(()=>{S.sr=[]}).then(render)}}
+ if(a==='addr'){const f=S.sr[+b.dataset.i];reg(f);const x=S.log.find(l=>l.id===f.id);x?x.q++:S.log.push({id:f.id,q:1});S.sr=null;S.q=''}
+ render()});
+render();
+</script>
+</body>
+</html>
