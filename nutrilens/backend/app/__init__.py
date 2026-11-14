@@ -1,0 +1,1 @@
+"""NutriLens FastAPI backend."""
