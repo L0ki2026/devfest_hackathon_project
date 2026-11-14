@@ -7,16 +7,18 @@ def test_search_demo_banana(client):
     assert any("banana" in x["name"].lower() for x in data)
 
 
-def test_workout_fallback(client):
+def test_post_workout_route(client):
     resp = client.post(
-        "/api/workout",
-        json={"text": "45 minute run", "pantry": ["banana", "oats"]},
+        "/api/post-workout-meal",
+        json={
+            "workout_text": "45 minute run",
+            "items": [
+                {"id": "1", "name": "banana", "quantity": 100, "unit": "g", "ingredients": ""},
+            ],
+        },
     )
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["kind"] in ("strength", "endurance", "light")
-    assert isinstance(body["pre"], list)
-    assert isinstance(body["post"], list)
+    assert resp.json()["meals"] is not None
 
 
 def test_pantry_analyze(client):

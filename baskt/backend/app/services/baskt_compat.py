@@ -109,14 +109,14 @@ async def search_foods_baskt(query: str, limit: int = 5) -> list[dict]:
 
 async def identify_from_base64(image_b64: str, mime: str) -> dict:
     settings = get_settings()
-    if settings.demo_mode and not settings.gemini_configured():
-        return {"items": [{"name": "banana"}, {"name": "plain greek yogurt"}]}
-
     if not settings.gemini_configured():
-        raise ValueError("GEMINI_API_KEY is not set on the server")
+        raise ValueError(
+            "GEMINI_API_KEY is not set. Photo scanning requires Gemini (no placeholder foods)."
+        )
 
-    names = await identify_foods_from_image(image_b64, mime)
-    return {"items": [{"name": n} for n in names]}
+    from app.services.gemini_service import parse_groceries_from_image
+
+    return await parse_groceries_from_image(image_b64, mime)
 
 
 async def workout_suggestion(text: str, pantry: list[str]) -> dict:

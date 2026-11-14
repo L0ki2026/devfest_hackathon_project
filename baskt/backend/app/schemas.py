@@ -23,6 +23,11 @@ class BasketItem(BaseModel):
         return v
 
 
+class PantryItem(BasketItem):
+    ingredients: str = ""
+    source: str | None = None
+
+
 class WorkoutInput(BaseModel):
     type: str
     duration_minutes: float
@@ -104,3 +109,11 @@ class ErrorBody(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: ErrorBody
+
+
+class PantryInsightsResponse(BaseModel):
+    analysis: AnalyzeBasketResponse
+    bars: list[dict]
+    gaps: list[dict]
+    quality: list[dict]
+    pairings: list[dict]

@@ -121,3 +121,84 @@ async def suggest_workout_meals(text: str, pantry: list[str]) -> dict:
         ).model_dump()
 
     return await asyncio.to_thread(_call)
+
+
+PARSE_GROCERY_PROMPT = (
+    "Extract grocery foods visible in this image. Return each food with name, quantity "
+    "(null if unknown), unit (g, piece, cup, l, etc.), and estimated=true when guessing. "
+    "Ignore prices, tax, totals, and non-food items. Do not invent foods not visible."
+)
+
+
+async def parse_groceries_from_image(image_b64: str, mime: str) -> dict:
+    settings = get_settings()
+    raw = base64.b64decode(image_b64)
+    schema = types.Schema(
+        type=types.Type.OBJECT,
+        required=["items", "needs_confirmation"],
+        properties={
+            "items": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["name"],
+                    properties={
+                        "name": types.Schema(type=types.Type.STRING),
+                        "quantity": types.Schema(type=types.Type.NUMBER, nullable=True),
+                        "unit": types.Schema(type=types.Type.STRING, nullable=True),
+                        "estimated": types.Schema(type=types.Type.BOOLEAN),
+                    },
+                ),
+            ),
+            "needs_confirmation": types.Schema(type=types.Type.BOOLEAN),
+            "warnings": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+            ),
+        },
+    )
+
+    def _call() -> dict:
+        client = _client()
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=raw, mime_type=mime or "image/jpeg"),
+                        types.Part.from_text(text=PARSE_GROCERY_PROMPT),
+                    ],
+                )
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.2,
+            ),
+        )
+        data = json.loads(response.text or "{}")
+        items = []
+        for i, row in enumerate(data.get("items") or []):
+            if not row.get("name"):
+                continue
+            items.append(
+                {
+                    "name": str(row["name"]).strip(),
+                    "quantity": row.get("quantity"),
+                    "unit": row.get("unit") or "g",
+                    "estimated": bool(row.get("estimated", True)),
+                    "id": f"scan_{i + 1}",
+                }
+            )
+        warnings = list(data.get("warnings") or [])
+        if data.get("needs_confirmation", True):
+            warnings.append("Confirm scanned items and quantities before relying on nutrients.")
+        return {
+            "items": items,
+            "needs_confirmation": bool(data.get("needs_confirmation", True)),
+            "warnings": warnings,
+            "source": "gemini",
+        }
+
+    return await asyncio.to_thread(_call)
