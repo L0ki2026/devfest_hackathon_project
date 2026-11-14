@@ -70,12 +70,11 @@ const R=[
 const F=Object.fromEntries(R.map(x=>[x.id,x]));
 const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
 const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
-const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:''};
+const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],wres:null,wtext:''};
 try{const sv=JSON.parse(localStorage.getItem('eatclean')||'null');if(sv){sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
 async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
 function srch(){if(!S.sr)return'';if(S.sr==='loading')return'<div class="empty">Searching…</div>';if(!S.sr.length)return'<div class="empty">No matches. Try a simpler name.</div>';return S.sr.map((f,i)=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.src)} · ${f.kcal} kcal, ${f.p}g protein per 100 g</small></div><button class="ghost sm" data-act="addr" data-i="${i}">Add</button></div>`).join('')}
-async function identify(f){if(!f)return;S.msg='Identifying items…';render();try{const b64=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result.split(',')[1]);r.onerror=no;r.readAsDataURL(f)});const j=await api('/api/identify',{image:b64,mime:f.type||'image/jpeg'});const items=[];for(const n of j.items.slice(0,6)){const hit=(await api('/api/search?q='+encodeURIComponent(n.name)))[0];if(hit){reg(hit);items.push({id:hit.id,q:1,on:true})}}S.det=items.length?{url:URL.createObjectURL(f),items}:null;S.msg=items.length?'':'No food recognized. Try a clearer photo.'}catch(err){S.msg='Could not analyze photo: '+err.message}render()}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const flags=f=>BAD.filter(b=>f.ing.toLowerCase().includes(b[0])).map(b=>b[1]);
 const tot=()=>{const t={};for(const k in T)t[k]=0;S.log.forEach(e=>{for(const k in T)t[k]+=F[e.id][k]*e.q});return t};
@@ -103,14 +102,10 @@ function view(){
  const t=tot();
  if(S.tab==='log'){
   const rows=['kcal','p','c','f'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${r1(t[k])}${U[k]}</span></div>`).join('');
-  const det=S.det?`<div class="card"><h2>Confirm what we found</h2><img class="pre" src="${S.det.url}" alt="Your photo">
-   <p class="sub">Detected by Gemini, nutrients from USDA and Open Food Facts. Check items and portions before logging.</p>
-   ${S.det.items.map((d,i)=>`<div class="item"><label><input type="checkbox" data-chk="${i}" ${d.on?'checked':''}> ${esc(F[d.id].name)}<small>${esc(F[d.id].srv)} × ${d.q}</small></label><span><button class="ghost sm" data-act="dq" data-i="${i}" data-d="-.5" aria-label="Smaller portion">−</button> <button class="ghost sm" data-act="dq" data-i="${i}" data-d=".5" aria-label="Larger portion">+</button></span></div>`).join('')}
-   <div class="flex" style="margin-top:10px"><button data-act="confirm">Add to log</button><button class="ghost" data-act="cancel">Cancel</button></div></div>`:'';
   return `<h1>Today</h1><p class="sub">Quality and nutrients, tracked together.</p>
   <div class="label"><div class="big"><span>Calories</span><b>${Math.round(t.kcal)}</b></div>${rows}</div>
   <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div>
-  <div style="margin-top:10px"><label class="sub" for="ph">Or snap a photo of your groceries or meal</label><input id="ph" type="file" accept="image/*" capture="environment"></div></div>${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}${det}
+  </div></div>${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}
   <div class="card"><h2>Logged</h2>${S.log.length?S.log.map((e,i)=>{const f=F[e.id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} × ${e.q} · ${Math.round(f.kcal*e.q)} kcal</small>${fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}</div><button class="ghost sm" data-act="rm" data-i="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Nothing logged yet. Add a food above.</div>'}</div>`}
  if(S.tab==='quality'){
   const bad=S.log.filter(e=>flags(F[e.id]).length);
@@ -148,19 +143,14 @@ function view(){
 }
 function render(){
  try{localStorage.setItem('eatclean',JSON.stringify({log:S.log,pantry:S.pantry,foods:R.filter(f=>f.src)}))}catch(e){}
- document.getElementById('app').innerHTML=view()+'<p class="fine">Reference targets are generic adult values. Search results come from USDA FoodData Central and Open Food Facts (per 100 g); photo and workout suggestions use Gemini.</p>';
+ document.getElementById('app').innerHTML=view()+'<p class="fine">Reference targets are generic adult values. Search results come from USDA FoodData Central and Open Food Facts (per 100 g); workout suggestions use Gemini.</p>';
  document.getElementById('nav').innerHTML=[['log','Log'],['quality','Quality'],['gaps','Gaps'],['pantry','Pantry']].map(a=>`<button data-tab="${a[0]}" ${S.tab===a[0]?'aria-current="page"':''}>${a[1]}</button>`).join('');
- const ph=document.getElementById('ph');if(ph)ph.onchange=e=>identify(e.target.files[0]);
- document.querySelectorAll('[data-chk]').forEach(c=>c.onchange=()=>{S.det.items[c.dataset.chk].on=c.checked});
 }
 document.addEventListener('click',e=>{
  const tb=e.target.closest('[data-tab]');if(tb){S.tab=tb.dataset.tab;render();return}
  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,v=id=>document.getElementById(id);
  if(a==='add'){const id=v('add').value,x=S.log.find(l=>l.id===id);x?x.q++:S.log.push({id,q:1})}
  if(a==='rm')S.log.splice(+b.dataset.i,1);
- if(a==='dq'){const d=S.det.items[+b.dataset.i];d.q=Math.max(.5,d.q+ +b.dataset.d)}
- if(a==='confirm'){S.det.items.filter(d=>d.on).forEach(d=>{const x=S.log.find(l=>l.id===d.id);x?x.q+=d.q:S.log.push({id:d.id,q:d.q})});S.det=null}
- if(a==='cancel')S.det=null;
  if(a==='check'){const f=F[v('chk').value],fl=flags(f);render();v('chk').value=f.id;v('chkout').innerHTML=fl.length?`<div class="note"><b>${fl.length} flagged:</b> ${fl.map(esc).join(', ')}<br>${esc(ALT[f.id]||'')}</div>`:'<div class="note good">No flagged ingredients.</div>';return}
 
   if(a==='barcode'){
