@@ -1,4 +1,4 @@
-# eatclean
+# Baskt
 
 Nutrition tracking prototype with USDA/Open Food Facts search, barcode lookup, and post-workout meal suggestions.
 

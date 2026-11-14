@@ -207,7 +207,7 @@ async function usda(q) {
 // Open Food Facts (packaged foods, per 100 g; iron/vitamin C/calcium arrive in grams)
 async function off(q) {
   const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=5&fields=code,product_name,brands,ingredients_text,nutriments`,
-    { headers: { 'User-Agent': 'eatclean/1.0 (student project)' } });
+    { headers: { 'User-Agent': 'baskt/1.0 (student project)' } });
   if (!r.ok) return [];
   return ((await r.json()).products || []).filter(x => x.product_name).map(x => {
     const n = x.nutriments || {};
@@ -258,7 +258,7 @@ app.get('/api/barcode/:code', wrap(async (req, res) => {
 
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'EatClean/1.0'
+      'User-Agent': 'Baskt/1.0'
     },
     signal: AbortSignal.timeout(15000)
   });
@@ -284,4 +284,4 @@ app.get('/api/barcode/:code', wrap(async (req, res) => {
   res.json(data.product);
 }));
 
-app.listen(PORT, () => console.log(`eatclean running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Baskt running at http://localhost:${PORT}`));

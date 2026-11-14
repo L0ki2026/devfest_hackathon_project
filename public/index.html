@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>eatclean</title>
+<title>Baskt</title>
 <style>
 :root{--bg:#f1f5ef;--card:#fff;--fg:#17211b;--mut:#5d6b62;--leaf:#2f6b4f;--leaf2:#dcebe2;--flag:#b3134f;--flag2:#fbe3ec;--sun:#b7790a;--sun2:#fbefd2;--bd:#cfd9d1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1511;--card:#18211b;--fg:#e6efe8;--mut:#9aaba0;--leaf:#6fc59a;--leaf2:#1d3328;--flag:#ff7fa8;--flag2:#3a1626;--sun:#f0b84a;--sun2:#34280d;--bd:#2d3b31;color-scheme:dark}}
@@ -71,7 +71,7 @@ const F=Object.fromEntries(R.map(x=>[x.id,x]));
 const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
 const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
 const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
-try{const sv=JSON.parse(localStorage.getItem('eatclean')||'null');if(sv){sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
+try{const raw=localStorage.getItem('baskt')||localStorage.getItem('eatclean');const sv=JSON.parse(raw||'null');if(sv){sv.foods&&sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
 async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
 function srch(){if(!S.sr)return'';if(S.sr==='loading')return'<div class="empty">Searching…</div>';if(!S.sr.length)return'<div class="empty">No matches. Try a simpler name.</div>';return S.sr.map((f,i)=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.src)} · ${f.kcal} kcal, ${f.p}g protein per 100 g</small></div><button class="ghost sm" data-act="addr" data-i="${i}">Add</button></div>`).join('')}
@@ -147,7 +147,7 @@ function view(){
  const t=tot();
  if(S.tab==='log'){
   const rows=['kcal','p','c','f'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${r1(t[k])}${U[k]}</span></div>`).join('');
-  return `<h1>Today</h1><p class="sub">Quality and nutrients, tracked together.</p>
+  return `<h1>Baskt</h1><p class="sub">Quality and nutrients, tracked together.</p>
   <div class="label"><div class="big"><span>Calories</span><b>${Math.round(t.kcal)}</b></div>${rows}</div>
   <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div>
   </div></div>${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}
@@ -201,7 +201,7 @@ function view(){
   <div class="card"><h2>Nutrients in your pantry</h2>${(()=>{const p={};Object.keys(T).forEach(k=>p[k]=0);S.pantry.forEach(i=>Object.keys(T).forEach(k=>p[k]+=F[i][k]));return['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><span></span><span class="num">${r1(p[k])}${U[k]}</span></div>`).join('')})()}<p class="fine">Total across one serving of each item.</p></div>`}
 }
 function render(){
- try{localStorage.setItem('eatclean',JSON.stringify({log:S.log,pantry:S.pantry,foods:R.filter(f=>f.src)}))}catch(e){}
+ try{localStorage.setItem('baskt',JSON.stringify({log:S.log,pantry:S.pantry,foods:R.filter(f=>f.src)}))}catch(e){}
  document.getElementById('app').innerHTML=view()+'<p class="fine">Reference targets are generic adult values. Search results come from USDA FoodData Central and Open Food Facts (per 100 g); workout suggestions use Gemini.</p>';
  document.getElementById('nav').innerHTML=[['log','Log'],['quality','Quality'],['gaps','Gaps'],['pantry','Pantry']].map(a=>`<button data-tab="${a[0]}" ${S.tab===a[0]?'aria-current="page"':''}>${a[1]}</button>`).join('');
 }
