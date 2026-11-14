@@ -45,7 +45,3 @@ API docs: http://localhost:8000/docs · Contract: [`baskt/API_CONTRACT.md`](bask
 ```bash
 cd baskt/backend && pytest -q
 ```
-
-## Note on `tally.zip`
-
-Older repo artifact at repo root; not part of the Baskt runtime.
