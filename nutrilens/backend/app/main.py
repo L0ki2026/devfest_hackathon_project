@@ -1,11 +1,16 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.config import get_settings
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 
 settings = get_settings()
 
@@ -24,6 +29,15 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+
+@app.get("/")
+async def serve_home() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+if FRONTEND_DIR.is_dir():
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
 @app.exception_handler(RequestValidationError)

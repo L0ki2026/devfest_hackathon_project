@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,7 +14,10 @@ class Settings(BaseSettings):
     demo_mode: bool = False
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.0-flash"
-    fdc_api_key: str | None = None
+    fdc_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FDC_API_KEY", "USDA_API_KEY"),
+    )
     frontend_origins: str = "http://localhost:3000,http://localhost:5173"
     usda_base_url: str = "https://api.nal.usda.gov/fdc/v1"
     usda_timeout_seconds: float = 30.0

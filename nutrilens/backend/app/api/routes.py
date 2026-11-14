@@ -1,9 +1,30 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.schemas import AnalyzeBasketRequest, AnalyzeBasketResponse, HealthResponse
 from app.services.basket_analysis import analyze_basket
+from app.services.eatclean_compat import (
+    identify_from_base64,
+    pantry_to_analyze,
+    search_foods_eatclean,
+    workout_suggestion,
+)
 from app.services.usda_service import UsdaServiceError
+
+
+class IdentifyBody(BaseModel):
+    image: str
+    mime: str = "image/jpeg"
+
+
+class WorkoutBody(BaseModel):
+    text: str = ""
+    pantry: list[str] = Field(default_factory=list)
+
+
+class PantryAnalyzeBody(BaseModel):
+    names: list[str] = Field(default_factory=list)
 
 router = APIRouter(prefix="/api")
 
@@ -62,3 +83,54 @@ async def analyze_basket_endpoint(body: AnalyzeBasketRequest) -> AnalyzeBasketRe
             status_code=exc.status_code,
             detail={"error": {"code": exc.code, "message": exc.message}},
         ) from exc
+
+
+@router.get("/search")
+async def search_foods(q: str = Query("", max_length=80)) -> list[dict]:
+    """eatclean-compatible food search (USDA + Open Food Facts)."""
+    if not q.strip():
+        return []
+    return await search_foods_eatclean(q)
+
+
+@router.post("/identify")
+async def identify_foods(body: IdentifyBody) -> dict:
+    if not body.image:
+        raise HTTPException(status_code=400, detail={"error": "No image received"})
+    try:
+        return await identify_from_base64(body.image, body.mime)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail={"error": str(exc)}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"error": str(exc)}) from exc
+
+
+@router.post("/workout")
+async def workout_api(body: WorkoutBody) -> dict:
+    try:
+        return await workout_suggestion(body.text, body.pantry)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"error": str(exc)}) from exc
+
+
+@router.post("/pantry-analyze", response_model=AnalyzeBasketResponse)
+async def pantry_analyze(body: PantryAnalyzeBody) -> AnalyzeBasketResponse:
+    """Analyze pantry item names as a 100 g grocery basket (NutriLens)."""
+    settings = get_settings()
+    if not body.names:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": {"code": "empty_pantry", "message": "No pantry names provided."}},
+        )
+    if not settings.usda_configured() and not settings.demo_mode:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": "usda_unavailable",
+                    "message": "Set FDC_API_KEY or DEMO_MODE=true.",
+                }
+            },
+        )
+    data = await pantry_to_analyze(body.names)
+    return AnalyzeBasketResponse(**data)

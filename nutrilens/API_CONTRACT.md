@@ -152,6 +152,19 @@ curl -s -X POST http://localhost:8000/api/analyze-basket \
 
 ---
 
+## eatclean UI compatibility (same server)
+
+These routes power the mobile web UI at `http://localhost:8000/` and match the former Node `server.js` contract:
+
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/api/search?q=` | USDA + Open Food Facts, eatclean food objects |
+| POST | `/api/identify` | JSON `{image, mime}` base64; needs `GEMINI_API_KEY` (or demo names) |
+| POST | `/api/workout` | JSON `{text, pantry[]}` |
+| POST | `/api/pantry-analyze` | JSON `{names[]}` → NutriLens `analyze-basket` (100 g each) |
+
+---
+
 ## Phase 2–4 (not implemented yet)
 
 The following routes are specified in the product spec but are **not** available in Phase 1:

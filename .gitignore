@@ -5,3 +5,4 @@
 **/.pytest_cache/
 nutrilens/backend/.env
 nutrilens/backend/app/data/usda_cache.sqlite
+node_modules/
