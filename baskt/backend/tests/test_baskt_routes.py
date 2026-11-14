@@ -33,4 +33,4 @@ def test_pantry_analyze(client):
 def test_serve_frontend(client):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "NutriLens" in resp.text
+    assert "Baskt" in resp.text

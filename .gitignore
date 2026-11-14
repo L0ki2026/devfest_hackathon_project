@@ -3,6 +3,6 @@
 **/venv/
 **/__pycache__/
 **/.pytest_cache/
-nutrilens/backend/.env
-nutrilens/backend/app/data/usda_cache.sqlite
+baskt/backend/.env
+baskt/backend/app/data/usda_cache.sqlite
 node_modules/

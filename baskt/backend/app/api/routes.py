@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 from app.config import get_settings
 from app.schemas import AnalyzeBasketRequest, AnalyzeBasketResponse, HealthResponse
 from app.services.basket_analysis import analyze_basket
-from app.services.eatclean_compat import (
+from app.services.baskt_compat import (
     identify_from_base64,
     pantry_to_analyze,
-    search_foods_eatclean,
+    search_foods_baskt,
     workout_suggestion,
 )
 from app.services.usda_service import UsdaServiceError
@@ -87,10 +87,10 @@ async def analyze_basket_endpoint(body: AnalyzeBasketRequest) -> AnalyzeBasketRe
 
 @router.get("/search")
 async def search_foods(q: str = Query("", max_length=80)) -> list[dict]:
-    """eatclean-compatible food search (USDA + Open Food Facts)."""
+    """baskt-compatible food search (USDA + Open Food Facts)."""
     if not q.strip():
         return []
-    return await search_foods_eatclean(q)
+    return await search_foods_baskt(q)
 
 
 @router.post("/identify")
@@ -115,7 +115,7 @@ async def workout_api(body: WorkoutBody) -> dict:
 
 @router.post("/pantry-analyze", response_model=AnalyzeBasketResponse)
 async def pantry_analyze(body: PantryAnalyzeBody) -> AnalyzeBasketResponse:
-    """Analyze pantry item names as a 100 g grocery basket (NutriLens)."""
+    """Analyze pantry item names as a 100 g grocery basket (Baskt)."""
     settings = get_settings()
     if not body.names:
         raise HTTPException(

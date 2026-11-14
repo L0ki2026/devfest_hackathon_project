@@ -1,11 +1,11 @@
-# NutriLens (DevFest hackathon)
+# Baskt (DevFest hackathon)
 
-Unified **web app + Python API**: the eatclean UI and the NutriLens backend run together on one server.
+Unified **web app + Python API**: the baskt UI and the Baskt backend run together on one server.
 
 ## Quick start
 
 ```bash
-cd nutrilens/backend
+cd baskt/backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
@@ -30,22 +30,22 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Open **http://localhost:8000** (UI + `/api/*`).
 
-API docs: http://localhost:8000/docs · Contract: [`nutrilens/API_CONTRACT.md`](nutrilens/API_CONTRACT.md)
+API docs: http://localhost:8000/docs · Contract: [`baskt/API_CONTRACT.md`](baskt/API_CONTRACT.md)
 
 ## Layout
 
 | Path | Role |
 |------|------|
-| `nutrilens/frontend/index.html` | Mobile web UI (Log, Quality, Gaps, Pantry) |
-| `nutrilens/backend/` | FastAPI: USDA analysis, search, Gemini adapters |
+| `baskt/frontend/index.html` | Mobile web UI (Log, Quality, Gaps, Pantry) |
+| `baskt/backend/` | FastAPI: USDA analysis, search, Gemini adapters |
 | `server.js` | **Legacy** Node server (port 3000) — use FastAPI instead |
 
 ## Tests
 
 ```bash
-cd nutrilens/backend && pytest -q
+cd baskt/backend && pytest -q
 ```
 
 ## Note on `tally.zip`
 
-Older repo artifact at repo root; not part of the NutriLens runtime.
+Older repo artifact at repo root; not part of the Baskt runtime.

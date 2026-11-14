@@ -91,7 +91,7 @@ class AnalyzeBasketResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
-    service: str = "nutrilens-backend"
+    service: str = "baskt-backend"
     demo_mode: bool = False
     gemini_configured: bool = False
     usda_configured: bool = False

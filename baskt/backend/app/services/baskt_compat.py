@@ -1,4 +1,4 @@
-"""Adapters so the eatclean web UI can use NutriLens backend routes."""
+"""Adapters so the baskt web UI can use Baskt backend routes."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def _nutrient_from_legacy_array(food_nutrients: list, number: str) -> float:
     return 0.0
 
 
-def _usda_row_to_eatclean(row: dict) -> dict:
+def _usda_row_to_baskt(row: dict) -> dict:
     brand = row.get("brandName") or ""
     desc = row.get("description") or "Unknown food"
     name = desc + (f" ({brand})" if brand else "")
@@ -62,7 +62,7 @@ def _usda_row_to_eatclean(row: dict) -> dict:
     }
 
 
-def _demo_row_to_eatclean(food: dict) -> dict:
+def _demo_row_to_baskt(food: dict) -> dict:
     n = food["nutrients_per_100g"]
     return {
         "id": "d" + str(food["fdc_id"]),
@@ -82,7 +82,7 @@ def _demo_row_to_eatclean(food: dict) -> dict:
     }
 
 
-async def search_foods_eatclean(query: str, limit: int = 5) -> list[dict]:
+async def search_foods_baskt(query: str, limit: int = 5) -> list[dict]:
     q = query.strip()[:80]
     if not q:
         return []
@@ -96,12 +96,12 @@ async def search_foods_eatclean(query: str, limit: int = 5) -> list[dict]:
             keys = [k.lower() for k in food.get("search_keys", [])]
             desc = food["description"].lower()
             if any(k in ql or ql in k for k in keys) or ql in desc:
-                usda_hits.append(_demo_row_to_eatclean(food))
+                usda_hits.append(_demo_row_to_baskt(food))
             if len(usda_hits) >= limit:
                 break
     else:
         rows = await usda.search_foods(q, page_size=limit)
-        usda_hits = [_usda_row_to_eatclean(r) for r in rows[:limit]]
+        usda_hits = [_usda_row_to_baskt(r) for r in rows[:limit]]
 
     off_hits = await search_open_food_facts(q, page_size=limit)
     return usda_hits + off_hits
@@ -166,7 +166,7 @@ def _workout_fallback(text: str, pantry: list[str]) -> dict:
 
 
 async def pantry_to_analyze(pantry_names: list[str]) -> dict:
-    """Map pantry food names to NutriLens analyze-basket (100 g each)."""
+    """Map pantry food names to Baskt analyze-basket (100 g each)."""
     from app.schemas import AnalyzeBasketRequest
 
     items = [

@@ -15,7 +15,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
 settings = get_settings()
 
 app = FastAPI(
-    title="NutriLens API",
+    title="Baskt API",
     description="Grocery basket nutrition analysis and meal planning backend",
     version="0.1.0",
 )

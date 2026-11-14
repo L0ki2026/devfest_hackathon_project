@@ -1,10 +1,10 @@
-# NutriLens — Cursor Backend Build Specification
+# Baskt — Cursor Backend Build Specification
 
-> **Instructions to Cursor:** You are the backend engineer for NutriLens, a 48-hour Google DevFest hackathon project. Implement a **working Python FastAPI backend** matching this specification. The React frontend is being built independently by a teammate. Keep routes, JSON field names, and semantics stable. Do not generate the frontend. **Write code and tests, not only an implementation plan.** Favor a reliable, demonstrable end-to-end pipeline over elaborate architecture.
+> **Instructions to Cursor:** You are the backend engineer for Baskt, a 48-hour Google DevFest hackathon project. Implement a **working Python FastAPI backend** matching this specification. The React frontend is being built independently by a teammate. Keep routes, JSON field names, and semantics stable. Do not generate the frontend. **Write code and tests, not only an implementation plan.** Favor a reliable, demonstrable end-to-end pipeline over elaborate architecture.
 
 ## 1. Product overview
 
-**NutriLens** turns a photo of a grocery receipt, a grocery-list image, or a manually entered grocery basket into an interactive nutrition dashboard. Users can explore nutrition represented by purchased/available food, see which nutrients are relatively underrepresented, request ingredient additions, and generate meals from food they own. A post-workout endpoint suggests recovery-oriented meals given workout information and user preferences.
+**Baskt** turns a photo of a grocery receipt, a grocery-list image, or a manually entered grocery basket into an interactive nutrition dashboard. Users can explore nutrition represented by purchased/available food, see which nutrients are relatively underrepresented, request ingredient additions, and generate meals from food they own. A post-workout endpoint suggests recovery-oriented meals given workout information and user preferences.
 
 **Scientific integrity requirements:**
 - Food in a grocery basket is **not** the same as food actually eaten. Never call grocery-basket gaps a diagnosed *deficiency* or treat total basket nutrients as daily intake.
@@ -27,7 +27,7 @@
 Create this layout in the repository (do not overwrite an existing frontend directory):
 
 ```text
-nutrilens/
+baskt/
   backend/
     app/
       __init__.py
@@ -115,7 +115,7 @@ All application endpoints are under `/api`. Configure CORS with `FRONTEND_ORIGIN
 
 ### A. `GET /api/health`
 
-Returns `200 {"status":"ok","service":"nutrilens-backend"}` without requiring API keys. Include an optional safe indicator of external configuration, but **never** reveal key values.
+Returns `200 {"status":"ok","service":"baskt-backend"}` without requiring API keys. Include an optional safe indicator of external configuration, but **never** reveal key values.
 
 ### B. `POST /api/parse-groceries` — multipart image upload
 

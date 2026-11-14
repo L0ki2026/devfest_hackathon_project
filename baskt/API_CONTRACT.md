@@ -1,4 +1,4 @@
-# NutriLens API Contract
+# Baskt API Contract
 
 Base URL (local): `http://localhost:8000`
 
@@ -59,7 +59,7 @@ Validation failures: HTTP `422` with `detail` (array) and optional `error.code` 
 ```json
 {
   "status": "ok",
-  "service": "nutrilens-backend",
+  "service": "baskt-backend",
   "demo_mode": false,
   "gemini_configured": false,
   "usda_configured": true
@@ -152,16 +152,16 @@ curl -s -X POST http://localhost:8000/api/analyze-basket \
 
 ---
 
-## eatclean UI compatibility (same server)
+## baskt UI compatibility (same server)
 
 These routes power the mobile web UI at `http://localhost:8000/` and match the former Node `server.js` contract:
 
 | Method | Path | Notes |
 |--------|------|--------|
-| GET | `/api/search?q=` | USDA + Open Food Facts, eatclean food objects |
+| GET | `/api/search?q=` | USDA + Open Food Facts, baskt food objects |
 | POST | `/api/identify` | JSON `{image, mime}` base64; needs `GEMINI_API_KEY` (or demo names) |
 | POST | `/api/workout` | JSON `{text, pantry[]}` |
-| POST | `/api/pantry-analyze` | JSON `{names[]}` → NutriLens `analyze-basket` (100 g each) |
+| POST | `/api/pantry-analyze` | JSON `{names[]}` → Baskt `analyze-basket` (100 g each) |
 
 ---
 

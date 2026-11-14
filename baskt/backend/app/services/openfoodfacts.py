@@ -25,7 +25,7 @@ async def search_open_food_facts(query: str, page_size: int = 5) -> list[dict]:
         "page_size": page_size,
         "fields": "code,product_name,brands,ingredients_text,nutriments",
     }
-    headers = {"User-Agent": "nutrilens/1.0 (student project)"}
+    headers = {"User-Agent": "baskt/1.0 (student project)"}
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(url, params=params, headers=headers)
