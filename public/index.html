@@ -70,11 +70,12 @@ const R=[
 const F=Object.fromEntries(R.map(x=>[x.id,x]));
 const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
 const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
-const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],addSel:'',addQ:1,det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
+const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],addSel:'',addQ:1,pantryQ:'',pantrySr:null,det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
 try{const raw=localStorage.getItem('baskt')||localStorage.getItem('eatclean');const sv=JSON.parse(raw||'null');if(sv){sv.foods&&sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
 async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
 function srch(){if(!S.sr)return'';if(S.sr==='loading')return'<div class="empty">Searching…</div>';if(!S.sr.length)return'<div class="empty">No matches. Try a simpler name.</div>';return S.sr.map((f,i)=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.src)} · ${f.kcal} kcal, ${f.p}g protein per 100 g</small></div><button class="ghost sm" data-act="addr" data-i="${i}">Add</button></div>`).join('')}
+function pantrySrch(){if(!S.pantrySr)return'';if(S.pantrySr==='loading')return'<div class="empty">Searching…</div>';if(!S.pantrySr.length)return'<div class="empty">No matches. Try a simpler name.</div>';return S.pantrySr.map((f,i)=>{const inP=S.pantry.includes(f.id);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.src)} · ${f.kcal} kcal, ${f.p}g protein per 100 g</small></div>${inP?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="paddr" data-i="${i}">Add to pantry</button>`}</div>`}).join('')}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const flags=f=>BAD.filter(b=>f.ing.toLowerCase().includes(b[0])).map(b=>b[1]);
 const tot=()=>{const t={};for(const k in T)t[k]=0;S.log.forEach(e=>{for(const k in T)t[k]+=F[e.id][k]*e.q});return t};
@@ -300,8 +301,9 @@ function view(){
   ${pairingSection()}
   ${workoutSection()}`}
  if(S.tab==='pantry'){
-  return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first. Add items from Gaps when you see a suggestion.</p>
-  <div class="card"><h2>At home</h2>${S.pantry.length?S.pantry.map(id=>{const f=F[id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><button class="ghost sm" data-act="prm" data-id="${id}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Your pantry is empty. Use <b>Add to pantry</b> on the Gaps tab.</div>'}</div>
+  return `<h1>Pantry</h1><p class="sub">What you keep at home—no servings or quantities, just items for suggestions.</p>
+  <div class="card"><h2>Add to pantry</h2><div class="flex"><input id="pq" type="text" value="${esc(S.pantryQ||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods for pantry"><button data-act="psrch">Search</button></div>${pantrySrch()}<p class="fine">Adds the food only (one pantry entry each). Search uses per 100 g reference data.</p></div>
+  <div class="card"><h2>At home</h2>${S.pantry.length?S.pantry.map(id=>{const f=F[id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><button class="ghost sm" data-act="prm" data-id="${id}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Your pantry is empty. Search above or use <b>Add to pantry</b> on the Gaps tab.</div>'}</div>
   <div class="card"><h2>Nutrients in your pantry</h2>${(()=>{const p={};Object.keys(T).forEach(k=>p[k]=0);S.pantry.forEach(i=>Object.keys(T).forEach(k=>p[k]+=F[i][k]));return['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><span></span><span class="num">${r1(p[k])}${U[k]}</span></div>`).join('')})()}<p class="fine">Total across one serving of each item.</p></div>`}
 }
 function render(){
@@ -418,6 +420,8 @@ document.addEventListener('click',e=>{
   return;
  }
  if(a==='srch'){S.q=v('q').value.trim();if(S.q){S.sr='loading';api('/api/search?q='+encodeURIComponent(S.q)).then(r=>{S.sr=r}).catch(()=>{S.sr=[]}).then(render)}}
+ if(a==='psrch'){S.pantryQ=v('pq').value.trim();if(S.pantryQ){S.pantrySr='loading';api('/api/search?q='+encodeURIComponent(S.pantryQ)).then(r=>{S.pantrySr=r}).catch(()=>{S.pantrySr=[]}).then(render)}}
+ if(a==='paddr'){const f=S.pantrySr[+b.dataset.i];reg(f);if(!S.pantry.includes(f.id))S.pantry.push(f.id);S.pantrySr=null;S.pantryQ='';render();return}
  if(a==='addr'){
   const f=S.sr[+b.dataset.i];reg(f);
   const q=parseQ(v('logAmt')&&v('logAmt').value!=null?v('logAmt').value:S.addQ);
