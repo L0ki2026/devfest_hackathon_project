@@ -70,7 +70,7 @@ const R=[
 const F=Object.fromEntries(R.map(x=>[x.id,x]));
 const BAD=[['red 40','Red 40'],['yellow 5','Yellow 5'],['yellow 6','Yellow 6'],['blue 1','Blue 1'],['high fructose corn syrup','High fructose corn syrup'],['bht','BHT'],['artificial flavor','Artificial flavor'],['sodium nitrite','Sodium nitrite']];
 const ALT={fruitsnack:'Dried mango with no added sugar, or fresh orange slices',puffs:'Air-popped popcorn with olive oil',bar:'An oat bar sweetened only with dates, or almonds and a banana'};
-const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
+const S={tab:'log',log:[{id:'oats',q:1},{id:'coffee',q:1},{id:'banana',q:1}],pantry:['spinach','lentils','orange','banana','oats','eggs','yogurt','coffee'],addSel:'',addQ:1,det:null,wres:null,wtext:'',wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:''};
 try{const raw=localStorage.getItem('baskt')||localStorage.getItem('eatclean');const sv=JSON.parse(raw||'null');if(sv){sv.foods&&sv.foods.forEach(f=>{F[f.id]=f;R.push(f)});S.log=sv.log;S.pantry=sv.pantry}}catch(e){}
 async function api(u,body){const r=await fetch(u,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 function reg(f){if(!F[f.id]){F[f.id]=f;R.push(f)}}
@@ -79,15 +79,115 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 const flags=f=>BAD.filter(b=>f.ing.toLowerCase().includes(b[0])).map(b=>b[1]);
 const tot=()=>{const t={};for(const k in T)t[k]=0;S.log.forEach(e=>{for(const k in T)t[k]+=F[e.id][k]*e.q});return t};
 const r1=n=>Math.round(n*10)/10;
-const opts=()=>R.map(f=>`<option value="${f.id}">${esc(f.name)} (${esc(f.srv)})</option>`).join('');
+const opts=(sel)=>R.map(f=>`<option value="${f.id}" ${f.id===(sel||'')?'selected':''}>${esc(f.name)} (${esc(f.srv)})</option>`).join('');
+const addOpts=(sel)=>`<option value="" ${!sel?'selected':''}>None</option>${opts(sel)}`;
+function parseQ(v){const n=+v;return Number.isFinite(n)?Math.max(0.25,Math.min(99,r1(n))):1}
+function scaledNutrients(f,q){const s={};for(const k in T)s[k]=(f[k]||0)*q;return s}
+function addPreviewBlock(){
+ const id=S.addSel,f=id?F[id]:null,q=parseQ(S.addQ);
+ if(!f)return'';
+ const sc=scaledNutrients(f,q);
+ return `<div class="note good" style="margin-top:10px"><b>Preview · ${r1(q)} serving${q===1?'':'s'} of ${esc(f.name)}</b><br>
+  ${Math.round(sc.kcal)} kcal · ${r1(sc.p)}g protein · ${r1(sc.c)}g carbs · ${r1(sc.f)}g fat · ${r1(sc.fib)}g fiber<br>
+  <span class="fine">Iron ${r1(sc.fe)} mg · Vit C ${r1(sc.vc)} mg · Calcium ${r1(sc.ca)} mg (scaled from ${esc(f.srv)})</span></div>`;
+}
+function logQty(n){return `<button type="button" class="ghost sm" data-act="qdn" data-i="${n}" aria-label="Decrease servings">−</button><input data-log-q="${n}" type="number" min="0.25" step="0.25" value="${r1(S.log[n].q)}" aria-label="Servings" style="width:4.2rem;padding:5px 6px;margin:0 4px"><button type="button" class="ghost sm" data-act="qup" data-i="${n}" aria-label="Increase servings">+</button>`}
 function gaps(){const t=tot();return['p','fib','fe','vc','ca'].filter(k=>t[k]/T[k]<.6)}
 function suggest(k){return R.filter(f=>!flags(f).length&&f[k]>0).map(f=>({f,s:f[k]/Math.max(f.kcal,40)+(S.pantry.includes(f.id)?1:0)})).sort((a,b)=>b.s-a.s).slice(0,3).map(x=>x.f)}
-function pairs(){
- const ids=S.log.map(e=>F[e.id]),iron=ids.filter(f=>f.fe>=1.8),vc=ids.filter(f=>f.vc>=15),tan=ids.filter(f=>f.tag==='tannin'),o=[];
- if(iron.length&&vc.length)o.push(['good',`Good pairing: ${iron[0].name} with ${vc[0].name}. Vitamin C improves non-heme iron absorption.`]);
- if(iron.length&&!vc.length)o.push(['warn',`${iron[0].name} has iron. Add a vitamin C food such as an orange or red pepper to help absorb it.`]);
- if(iron.length&&tan.length)o.push(['warn',`${tan[0].name} contains tannins and polyphenols that can reduce iron uptake. Space it apart from ${iron[0].name} when you can.`]);
- return o}
+function microLine(f,q){
+ return `${r1(f.fe*q)}${U.fe} iron · ${r1(f.vc*q)}${U.vc} vit C · ${r1(f.ca*q)}${U.ca} calcium · ${r1(f.f*q)}${U.f} fat`;
+}
+function partnerScore(anchor,partner){
+ let s=partner.vc+partner.fe*0.5+partner.f*2+partner.p;
+ if(S.pantry.includes(partner.id))s+=25;
+ if(flags(partner).length)s-=50;
+ return s;
+}
+function pickPartner(anchorId,pred){
+ const candidates=R.filter(f=>f.id!==anchorId&&pred(f)&&!flags(f).length);
+ candidates.sort((a,b)=>partnerScore(F[anchorId],b)-partnerScore(F[anchorId],a));
+ return candidates[0]||null;
+}
+function absorptionPairings(){
+ if(!S.log.length)return[];
+ const entries=S.log.map(e=>({f:F[e.id],q:e.q,m:{fe:F[e.id].fe*e.q,vc:F[e.id].vc*e.q,ca:F[e.id].ca*e.q,f:F[e.id].f*e.q,fib:F[e.id].fib*e.q,p:F[e.id].p*e.q}}));
+ const out=[],seen=new Set();
+ const logFe=entries.reduce((s,e)=>s+e.m.fe,0),logVc=entries.reduce((s,e)=>s+e.m.vc,0),logCa=entries.reduce((s,e)=>s+e.m.ca,0);
+ for(const e of entries){
+  const {f,q,m}=e;
+  const mark=k=>{seen.add(k)};
+  const has=k=>seen.has(k);
+  if(m.fe>=1.5){
+   const vcMate=entries.find(o=>o.f.id!==f.id&&o.m.vc>=8);
+   if(vcMate){
+    if(!has('fe-vc-'+f.id+'-'+vcMate.f.id)){
+     mark('fe-vc-'+f.id+'-'+vcMate.f.id);
+     out.push({tone:'good',title:`${f.name} + ${vcMate.f.name}`,micro:microLine(f,q),
+      text:`This meal has ~${r1(m.fe)} mg iron with ~${r1(vcMate.m.vc)} mg vitamin C—together they support non-heme iron absorption.`});
+    }
+   }else{
+    const p=pickPartner(f.id,x=>x.vc>=15);
+    if(p&&!has('fe-vc-need-'+f.id)){
+     mark('fe-vc-need-'+f.id);
+     out.push({tone:'warn',title:`Boost iron from ${f.name}`,micro:microLine(f,q),
+      text:`Add ${p.name} (${p.srv}, ~${r1(p.vc)} mg vit C) in the same meal for higher iron uptake.${S.pantry.includes(p.id)?' In your pantry.':''}`});
+    }
+   }
+   if(m.f<2){
+    const fat=pickPartner(f.id,x=>x.f>=5);
+    if(fat&&!has('fe-fat-'+f.id)){
+     mark('fe-fat-'+f.id);
+     out.push({tone:'good',title:`${f.name} with ${fat.name}`,micro:microLine(f,q),
+      text:`~${r1(fat.f)} g fat per serving from ${fat.name} helps absorb minerals and carotenoids from iron-rich plants like ${f.name}.`});
+    }
+   }
+  }
+  if(m.vc>=15&&logFe<1.5){
+   const fe=pickPartner(f.id,x=>x.fe>=1.5);
+   if(fe&&!has('vc-fe-'+f.id)){
+    mark('vc-fe-'+f.id);
+    out.push({tone:'good',title:`${f.name} unlocks ${fe.name}`,micro:microLine(f,q),
+     text:`Vitamin C from ${f.name} can raise absorption of iron from ${fe.name} (~${r1(fe.fe)} mg per serving) when eaten together.`});
+   }
+  }
+  if(m.ca>=120&&m.fe>=1.5&&!has('ca-fe-'+f.id)){
+   mark('ca-fe-'+f.id);
+   out.push({tone:'warn',title:`Calcium and iron in ${f.name}`,micro:microLine(f,q),
+    text:`This serving is high in both calcium and iron; they compete—split across meals when both matter.`});
+  }
+  if(f.tag==='tannin'&&logFe>=1.5&&!has('tannin-fe')){
+   mark('tannin-fe');
+   const feName=entries.find(x=>x.m.fe>=1.5)?.f.name||'iron-rich foods';
+   out.push({tone:'warn',title:`Separate ${f.name} from iron`,micro:microLine(f,q),
+    text:`Tannins in ${f.name} reduce iron uptake from ${feName}. Try ~1 hour between them.`});
+  }
+ }
+ if(logFe>=1.5&&logCa>=200&&!entries.some(e=>e.m.fe>=1.5&&e.m.ca>=120)&&!has('meal-ca-fe')){
+  mark('meal-ca-fe');
+  out.push({tone:'warn',title:'Meal timing: calcium vs iron',micro:`Today's log ~${r1(logFe)} mg iron, ~${r1(logCa)} mg calcium`,
+   text:'Large calcium and iron in one day absorb best when spread across meals, not one sitting.'});
+ }
+ if(!out.length&&logFe>=1.5&&logVc<8){
+  const anchor=entries.slice().sort((a,b)=>b.m.fe-a.m.fe)[0];
+  const p=pickPartner(anchor.f.id,x=>x.vc>=15);
+  if(p){
+   out.push({tone:'warn',title:`Maximize iron from ${anchor.f.name}`,micro:microLine(anchor.f,anchor.q),
+    text:`Add ${p.name} for vitamin C in the same meal—logged iron is ~${r1(logFe)} mg but vitamin C is only ~${r1(logVc)} mg total.`});
+  }
+ }
+ return out;
+}
+function pairingSection(){
+ const tips=absorptionPairings();
+ if(!S.log.length){
+  return `<div class="card"><h2>Absorption pairings</h2><p class="sub">Uses iron, vitamin C, calcium, fat, and fiber per logged serving.</p><div class="empty">Log foods on the Log tab to see micronutrient pairings for better absorption.</div></div>`;
+ }
+ const body=tips.length?tips.map(t=>`<div class="note ${t.tone==='good'?'good':'warn'}"><b>${esc(t.title)}</b><small class="sub" style="display:block;margin:4px 0">${esc(t.micro)}</small>${esc(t.text)}</div>`).join('')
+  :'<div class="note good">No strong absorption conflicts in today’s log. Keep pairing iron with vitamin C and spacing tannins from iron-rich meals.</div>';
+ return `<div class="card"><h2>Absorption pairings</h2>
+  <p class="sub">Suggestions use each food’s micronutrients (per logged quantity) to improve uptake and limit blockers.</p>
+  ${body}</div>`;
+}
 const WK_LABELS={running:'Running',cycling:'Cycling',strength:'Strength / weights',hiit:'HIIT',swimming:'Swimming',yoga:'Yoga / mobility'};
 const MUSCLE_LABELS={cardio:'Cardio (not muscle-specific)',legs:'Legs',chest:'Chest',back:'Back',arms:'Arms',shoulders:'Shoulders',core:'Core',full_body:'Full body'};
 function pantryName(id){return F[id]?F[id].name+(S.pantry.includes(id)?' (in pantry)':''):null}
@@ -169,15 +269,17 @@ function view(){
   const rows=['kcal','p','c','f'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${r1(t[k])}${U[k]}</span></div>`).join('');
   return `<h1>Baskt</h1><p class="sub">Quality and nutrients, tracked together.</p>
   <div class="label"><div class="big"><span>Calories</span><b>${Math.round(t.kcal)}</b></div>${rows}</div>
-  <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div></div>
+  <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}
+  <p class="sub" style="margin:12px 0 6px">Set servings first. Search to add, or pick a food below when not None.</p>
+  <label class="sub" for="logAmt">Servings (for search &amp; quick add)</label>
+  <div class="flex" style="margin-top:4px;flex-wrap:wrap"><input id="logAmt" type="number" min="0.25" step="0.25" value="${r1(S.addQ||1)}" aria-label="Number of servings" style="width:5rem;flex:0 0 auto"><select id="add" aria-label="Food to add" style="flex:1;min-width:140px">${addOpts(S.addSel)}</select><button data-act="add" ${S.addSel?'':'disabled'} style="${S.addSel?'':'opacity:.5;cursor:not-allowed'}">Add</button></div>
+  ${addPreviewBlock()}</div>
   ${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}
-  <div class="card"><h2>Logged</h2>${S.log.length?S.log.map((e,i)=>{const f=F[e.id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} × ${e.q} · ${Math.round(f.kcal*e.q)} kcal</small>${fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}</div><button class="ghost sm" data-act="rm" data-i="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Nothing logged yet. Add a food above.</div>'}</div>`}
+  <div class="card"><h2>Logged</h2>${S.log.length?S.log.map((e,i)=>{const f=F[e.id],fl=flags(f),sc=scaledNutrients(f,e.q);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} — ${Math.round(sc.kcal)} kcal · ${r1(sc.p)}g P · ${r1(sc.c)}g C · ${r1(sc.f)}g F</small>${fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}</div><div class="flex" style="flex-wrap:nowrap">${logQty(i)}<button class="ghost sm" data-act="rm" data-i="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></div></div>`}).join(''):'<div class="empty">Nothing logged yet. Add a food above.</div>'}</div>`}
  if(S.tab==='quality'){
   const bad=S.log.filter(e=>flags(F[e.id]).length);
   return `<h1>Food Quality</h1><p class="sub">Review ingredient quality, identify additives, and find practical alternatives.</p>
   <div class="card"><h2>Ingredient quality in today’s log</h2>${bad.length?bad.map(e=>{const f=F[e.id];return`<div class="item"><div><b>${esc(f.name)}</b><small>${esc(f.ing)}</small>${flags(f).map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}<div class="note good"><b>Cleaner swap:</b> ${esc(ALT[f.id]||'Look for a version without these additives.')}</div></div></div>`}).join(''):'<div class="note good">No flagged additives found in today’s log.</div>'}</div>
-  <div class="card"><h2>Check a packaged food</h2><div class="flex"><select id="chk" aria-label="Packaged food">${R.filter(f=>f.ing).map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><button data-act="check">Check</button></div><div id="chkout"></div></div>
-  
 <div class="card">
   <h2>Look up packaged food by barcode</h2>
   <p class="sub">Enter the barcode printed on the package.</p>
@@ -189,18 +291,17 @@ function view(){
     <button data-act="barcode">Look up</button>
   </div>
   <div id="barcodeout"></div>
-</div>
-<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>`}
+</div>`}
  if(S.tab==='gaps'){
   const g=gaps(),all=['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar ${t[k]/T[k]<.6?'low':''}"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${Math.round(t[k]/T[k]*100)}%</span></div>`).join('');
-  return `<h1>Gaps</h1><p class="sub">Nutrient gaps in your log, post-workout fuel, and pantry-first ideas.</p>
+  return `<h1>Gaps</h1><p class="sub">Nutrient gaps, absorption pairings from food micros, post-workout fuel, and pantry-first ideas.</p>
   <div class="label"><div class="big"><span>Today's Log</span></div>${all}</div>
   ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You are above 60% on every tracked nutrient.</div>'}
+  ${pairingSection()}
   ${workoutSection()}`}
  if(S.tab==='pantry'){
-  return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first.</p>
-  <div class="card"><div class="flex"><select id="padd" aria-label="Add to pantry">${opts()}</select><button data-act="pantryadd">Add</button></div></div>
-  <div class="card"><h2>At home</h2>${S.pantry.length?S.pantry.map(id=>{const f=F[id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><button class="ghost sm" data-act="prm" data-id="${id}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Your pantry is empty. Add what you bought this week.</div>'}</div>
+  return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first. Add items from Gaps when you see a suggestion.</p>
+  <div class="card"><h2>At home</h2>${S.pantry.length?S.pantry.map(id=>{const f=F[id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><button class="ghost sm" data-act="prm" data-id="${id}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Your pantry is empty. Use <b>Add to pantry</b> on the Gaps tab.</div>'}</div>
   <div class="card"><h2>Nutrients in your pantry</h2>${(()=>{const p={};Object.keys(T).forEach(k=>p[k]=0);S.pantry.forEach(i=>Object.keys(T).forEach(k=>p[k]+=F[i][k]));return['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><span></span><span class="num">${r1(p[k])}${U[k]}</span></div>`).join('')})()}<p class="fine">Total across one serving of each item.</p></div>`}
 }
 function render(){
@@ -211,10 +312,17 @@ function render(){
 document.addEventListener('click',e=>{
  const tb=e.target.closest('[data-tab]');if(tb){S.tab=tb.dataset.tab;render();return}
  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,v=id=>document.getElementById(id);
- if(a==='add'){const id=v('add').value,x=S.log.find(l=>l.id===id);x?x.q++:S.log.push({id,q:1})}
+ if(a==='add'){
+  const id=v('add').value;
+  if(!id){S.msg='Choose a food from the list (not None).';render();return}
+  const q=parseQ(v('logAmt')&&v('logAmt').value!=null?v('logAmt').value:S.addQ);
+  S.addSel=id;S.addQ=q;S.msg='';
+  const x=S.log.find(l=>l.id===id);
+  if(x)x.q=r1(x.q+q);else S.log.push({id,q});
+ }
+ if(a==='qup'){const i=+b.dataset.i;if(S.log[i]){S.log[i].q=parseQ(S.log[i].q+0.25);render();return}}
+ if(a==='qdn'){const i=+b.dataset.i;if(S.log[i]){S.log[i].q=parseQ(S.log[i].q-0.25);render();return}}
  if(a==='rm')S.log.splice(+b.dataset.i,1);
- if(a==='check'){const f=F[v('chk').value],fl=flags(f);render();v('chk').value=f.id;v('chkout').innerHTML=fl.length?`<div class="note"><b>${fl.length} flagged:</b> ${fl.map(esc).join(', ')}<br>${esc(ALT[f.id]||'')}</div>`:'<div class="note good">No flagged ingredients.</div>';return}
-
   if(a==='barcode'){
     const code=v('barcode').value.trim();
     const out=v('barcodeout');
@@ -298,7 +406,6 @@ document.addEventListener('click',e=>{
   }
 
  if(a==='padd'){const id=b.dataset.id;if(!S.pantry.includes(id))S.pantry.push(id)}
- if(a==='pantryadd'){const id=v('padd').value;if(!S.pantry.includes(id))S.pantry.push(id)}
  if(a==='prm')S.pantry=S.pantry.filter(i=>i!==b.dataset.id);
  if(a==='wkmeal'){
   S.wkMin=Math.max(5,Math.min(300,+v('wkMin').value||45));
@@ -311,8 +418,27 @@ document.addEventListener('click',e=>{
   return;
  }
  if(a==='srch'){S.q=v('q').value.trim();if(S.q){S.sr='loading';api('/api/search?q='+encodeURIComponent(S.q)).then(r=>{S.sr=r}).catch(()=>{S.sr=[]}).then(render)}}
- if(a==='addr'){const f=S.sr[+b.dataset.i];reg(f);const x=S.log.find(l=>l.id===f.id);x?x.q++:S.log.push({id:f.id,q:1});S.sr=null;S.q=''}
+ if(a==='addr'){
+  const f=S.sr[+b.dataset.i];reg(f);
+  const q=parseQ(v('logAmt')&&v('logAmt').value!=null?v('logAmt').value:S.addQ);
+  S.addQ=q;S.msg='';
+  const x=S.log.find(l=>l.id===f.id);
+  if(x)x.q=r1(x.q+q);else S.log.push({id:f.id,q});
+  S.sr=null;S.q='';
+ }
  render()});
+document.addEventListener('change',e=>{
+ const t=e.target;
+ if(t.id==='add'){S.addSel=t.value||'';S.tab==='log'&&render();return}
+ if(t.id==='logAmt'){S.addQ=parseQ(t.value);S.tab==='log'&&render();return}
+ if(t.dataset.logQ!=null){
+  const i=+t.dataset.logQ;
+  if(S.log[i]){S.log[i].q=parseQ(t.value);render()}
+ }
+});
+document.addEventListener('input',e=>{
+ if(e.target.id==='logAmt'){S.addQ=parseQ(e.target.value);S.tab==='log'&&render()}
+});
 render();
 </script>
 </body>
