@@ -1,7 +1,8 @@
 import express from 'express';
 
-const { GEMINI_API_KEY: G, USDA_API_KEY: U = 'DEMO_KEY', PORT = 3000 } = process.env;
-const MODEL = 'gemini-3.8-flash';
+const { GEMINI_API_KEY: G, USDA_API_KEY: U = 'DEMO_KEY', PORT = 3000, GEMINI_MODELS } = process.env;
+// Tried in order; a busy or timed-out model falls through to the next.
+const MODELS = (GEMINI_MODELS || 'gemini-3.8-flash,gemini-3.6-flash,gemini-2.5-flash').split(',').map(s => s.trim()).filter(Boolean);
 const app = express();
 app.use(express.json({ limit: '12mb' }));
 app.use(express.static('public'));
@@ -15,13 +16,14 @@ async function gemini(parts, schema) {
     throw new Error('GEMINI_API_KEY is not set on the server');
   }
 
-  const maxAttempts = 3;
+  const maxAttempts = MODELS.length;
   let lastError;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const model = MODELS[attempt - 1];
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
           headers: {
@@ -35,7 +37,7 @@ async function gemini(parts, schema) {
               responseSchema: schema
             }
           }),
-          signal: AbortSignal.timeout(15000)
+          signal: AbortSignal.timeout(12000)
         }
       );
 
@@ -76,10 +78,9 @@ async function gemini(parts, schema) {
     }
 
     if (attempt < maxAttempts) {
-      console.log(`Gemini attempt ${attempt} failed. Retrying...`);
-      await new Promise(resolve =>
-        setTimeout(resolve, attempt * 2000)
-      );
+      const reason = lastError?.name === 'TimeoutError' ? 'timed out' : lastError?.message;
+      console.log(`Gemini ${model} failed (${reason}). Trying ${MODELS[attempt]}...`);
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 

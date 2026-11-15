@@ -9,7 +9,7 @@ Day-by-day nutrition journal with USDA/Open Food Facts search, barcode lookup, a
 3. Copy `.env.example` to `.env` and paste both keys in.  
 4. Run `npm install` then `npm start`, and open http://localhost:3000  
 
-API keys stay on the server. The browser calls `/api/search`, `/api/barcode/:code`, and `/api/workout-meal` (`/api/identify` exists on the server but has no UI yet).
+API keys stay on the server. The browser calls `/api/search`, `/api/barcode/:code`, `/api/workout-meal`, and `/api/identify` (Pantry → Scan groceries: Gemini lists the foods in a photo, you confirm, and they're added to the pantry, never to the daily log).
 
 ## Tests
 

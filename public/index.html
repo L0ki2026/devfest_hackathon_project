@@ -257,6 +257,11 @@ mark{background:transparent;color:var(--clay);font-weight:700;text-decoration:un
 .chk input{width:auto;margin-top:3px;accent-color:var(--forest)}
 .chk small{display:block;font:11.5px var(--mono);color:var(--mut)}
 .chk.off{color:var(--mut)}
+.scanbtns{display:flex;flex-wrap:wrap;gap:8px}
+.scanbtns label{display:inline-flex;align-items:center;cursor:pointer}
+.scanbtns .btn-line{padding:10px 14px;font-size:14px}
+.scanprev{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:var(--r);border:1px solid var(--rule)}
+.scanstatus{margin:12px 0;font:italic 16px var(--serif);color:var(--forest)}
 .plate label.chk{display:flex;margin:0;font:14px/1.4 var(--sans);letter-spacing:0;text-transform:none;color:var(--ink)}
 .plate .btn{background:var(--forest);color:var(--card);border-color:var(--forest);width:auto;margin-top:14px}
 .plate .btn:hover{background:var(--forest2)}
@@ -365,7 +370,7 @@ DB.foods.forEach(reg);
 const S={tab:'log',today:TODAY0,date:TODAY0,followToday:true,histEnd:TODAY0,histMetric:'kcal',
  pantry:DB.pantry.map(p=>p.foodId).filter(id=>F[id]),
  q:'',sr:null,pick:null,pickCtx:'log',amt:1,unit:'serv',meal:'',msg:'',msgTone:'',msgCtx:'log',focus:null,
- pantryQ:'',pantrySr:null,bc:null,customTargets:false,tgOpen:false,msgTg:'',msgTgTone:'',
+ pantryQ:'',pantrySr:null,bc:null,scan:null,customTargets:false,tgOpen:false,msgTg:'',msgTgTone:'',
  wkType:'running',wkMin:45,wkIntensity:'moderate',wkMuscle:'cardio',wkMeal:null,msgWk:'',wkLog:false};
 function applyTargets(){const t=J.targets(DB.preferences);Object.assign(T,t.values);S.customTargets=t.custom}
 applyTargets();
@@ -712,6 +717,72 @@ function workoutSection(){
  </div></section>`;
 }
 
+function shrinkImage(file){
+ return new Promise((resolve,reject)=>{
+  const img=new Image(),src=URL.createObjectURL(file);
+  img.onload=()=>{
+   const k=Math.min(1,1280/Math.max(img.width,img.height)),c=document.createElement('canvas');
+   c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
+   c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+   URL.revokeObjectURL(src);
+   const url=c.toDataURL('image/jpeg',.85);
+   resolve({url,data:url.split(',')[1]});
+  };
+  img.onerror=()=>{URL.revokeObjectURL(src);reject(new Error('Couldn’t read that image. Try a JPEG or PNG photo.'))};
+  img.src=src;
+ });
+}
+async function scanPhoto(file){
+ const sc={status:'identifying',preview:'',items:[],msg:''};
+ S.scan=sc;render();
+ const live=()=>S.scan===sc;
+ try{
+  const{url,data}=await shrinkImage(file);
+  if(!live())return;
+  sc.preview=url;render();
+  const r=await api('/api/identify',{image:data,mime:'image/jpeg'});
+  if(!live())return;
+  const names=[...new Set((r.items||[]).map(x=>String(x&&x.name||'').trim()).filter(Boolean).map(n=>n.toLowerCase()))].slice(0,15);
+  if(!names.length){sc.status='error';sc.msg='No groceries recognized. Try a closer, well-lit photo.';render();return}
+  sc.items=names.map(name=>({name,food:matchFood(name),sel:true}));
+  sc.status='matching';render();
+  await Promise.all(sc.items.filter(x=>!x.food).map(x=>api('/api/search?q='+encodeURIComponent(x.name)).then(res=>{if(Array.isArray(res)&&res[0])x.food=res[0]}).catch(()=>{})));
+  if(!live())return;
+  sc.items.forEach(x=>{if(!x.food||S.pantry.includes(x.food.id))x.sel=false});
+  sc.status='review';render();
+ }catch(e){
+  if(!live())return;
+  sc.status='error';
+  sc.msg=/GEMINI_API_KEY/.test(e.message)?'Photo scanning needs a Gemini API key on the server (GEMINI_API_KEY in .env).'
+   :/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(e.message)?'Gemini rejected the server’s API key. Check GEMINI_API_KEY in .env, then restart the server.'
+   :`Couldn’t scan the photo: ${e.message}`;
+  render();
+ }
+}
+function scanPickers(primary){
+ return `<div class="scanbtns"><label class="${primary?'btn':'btn-line'}">Take a photo<input id="scancam" type="file" accept="image/*" capture="environment" hidden></label><label class="btn-line">Upload a photo<input id="scanfile" type="file" accept="image/*" hidden></label></div>`;
+}
+function scanSection(){
+ const sc=S.scan;
+ const head='<div class="sec-head"><h2>Scan groceries</h2><span class="aside">Gemini · you confirm first</span></div>';
+ if(!sc)return `<section>${head}<div class="panel"><p class="meta" style="margin:0 0 12px">Snap your groceries and Gemini will list what it sees. You review the list before anything is added to your pantry, and nothing is logged as eaten.</p>${scanPickers(true)}</div></section>`;
+ const prev=sc.preview?`<img class="scanprev" src="${sc.preview}" alt="Your grocery photo">`:'';
+ if(sc.status==='identifying'||sc.status==='matching')return `<section>${head}<div class="panel">${prev}<p class="scanstatus" role="status">${sc.status==='identifying'?'Identifying groceries with Gemini…':'Matching items to nutrition data…'}</p><button class="btn-line" data-act="scanx">Cancel</button></div></section>`;
+ if(sc.status==='error')return `<section>${head}<div class="panel">${prev}<div class="msg err" role="alert" style="margin:0 0 12px">${esc(sc.msg)}</div>${scanPickers(true)}<button class="btn-line" data-act="scanx" style="margin-top:8px">Dismiss</button></div></section>`;
+ const addable=sc.items.filter(x=>x.food&&!S.pantry.includes(x.food.id)).length;
+ return `<section>${head}<div class="panel">${prev}
+  <div class="eyebrow" style="margin:14px 0 4px">Gemini found ${sc.items.length} item${sc.items.length===1?'':'s'} · review before adding</div>
+  ${sc.items.map((x,i)=>{
+   const f=x.food,have=f&&S.pantry.includes(f.id);
+   const src=f?(f.src==='Open Food Facts'?'OFF':f.src||'Built-in'):'';
+   const detail=!f?'No nutrition match, so it can’t be added. Try Search above.':have?`${esc(f.name)} · already in your pantry`:`${esc(f.name)} · <span class="src">${esc(src)}</span>${Math.round(f.kcal)} kcal per ${esc(f.srv||'serving')}`;
+   return `<label class="chk${f&&!have?'':' off'}"><input type="checkbox" data-scan-i="${i}" ${x.sel?'checked':''} ${f&&!have?'':'disabled'}><span>${esc(x.name.charAt(0).toUpperCase()+x.name.slice(1))}<small>${detail}</small></span></label>`;
+  }).join('')}
+  <p class="fine">Items are added to your pantry only. Use “Log as eaten” when you actually eat something.</p>
+  <div class="scanbtns" style="margin-top:12px"><button class="btn" data-act="scanadd" ${addable?'':'disabled'}>Add selected to pantry</button><button class="btn-line" data-act="scanx">Discard</button></div>
+ </div></section>`;
+}
+
 function targetsSection(){
  const head=`<div class="sec-head"><h2>Daily targets</h2><span class="aside">${S.customTargets?'custom':'generic adult reference'}</span></div>`;
  const msg=S.msgTg?`<div class="msg ${S.msgTgTone}" role="status">${esc(S.msgTg)}</div>`:'';
@@ -841,6 +912,7 @@ function view(){
    ${searchBox('pq',S.pantryQ,'psrch','Search foods to stock','Search foods for pantry')}
    ${results(S.pantrySr,'pantry')}
   </section>
+  ${scanSection()}
   <section><div class="sec-head"><h2>Inventory</h2><span class="aside">${S.pantry.length} item${S.pantry.length===1?'':'s'}</span></div>
    ${S.msg&&S.msgCtx==='pantry'?`<div class="msg ${S.msgTone}" role="status" style="margin:0 0 12px">${esc(S.msg)}</div>`:''}
    ${S.pantry.length?order.filter(c=>groups[c]).map(c=>`<div class="cat"><h3>${c} <small>${groups[c].length}</small></h3>${groups[c].map(f=>{const fl=flags(f),open=S.pickCtx==='pantry'&&S.pick===f.id;return `<div class="pitem"><div><span class="nm">${esc(f.name)}</span> ${fl.length?fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join(''):'<span class="tag">Clean</span>'}</div><div class="pacts"><button class="btn-line" data-act="peat" data-id="${esc(f.id)}" aria-expanded="${open}">Log as eaten</button><button class="icon-btn" data-act="prm" data-id="${esc(f.id)}" aria-label="Remove ${esc(f.name)}">${svg(I.x,16)}</button></div></div>${open?composer():''}`}).join('')}</div>`).join('')
@@ -942,6 +1014,15 @@ document.addEventListener('click',e=>{
  if(a==='padd'){const id=b.dataset.id;if(!S.pantry.includes(id))S.pantry.push(id);render();return}
  if(a==='paddr'){const f=Array.isArray(S.pantrySr)&&S.pantrySr[i];if(f){reg(f);if(!S.pantry.includes(f.id))S.pantry.push(f.id)}render();return}
  if(a==='prm'){const id=b.dataset.id;S.pantry=S.pantry.filter(x=>x!==id);if(S.pickCtx==='pantry'&&S.pick===id)S.pick=null;render();return}
+ if(a==='scanx'){S.scan=null;render();return}
+ if(a==='scanadd'){
+  const sc=S.scan;if(!sc)return;
+  const picked=sc.items.filter(x=>x.sel&&x.food&&!S.pantry.includes(x.food.id));
+  picked.forEach(x=>{reg(x.food);if(!S.pantry.includes(x.food.id))S.pantry.push(x.food.id)});
+  S.scan=null;S.msgCtx='pantry';S.msgTone='ok';
+  S.msg=picked.length?`Added ${picked.length} item${picked.length===1?'':'s'} to your pantry: ${picked.map(x=>x.food.name).join(', ')}. Nothing was logged as eaten.`:'Nothing selected, so the pantry is unchanged.';
+  render();return;
+ }
  if(a==='tgopen'){S.tgOpen=true;S.msgTg='';render();return}
  if(a==='tgclose'){S.tgOpen=false;S.msgTg='';render();return}
  if(a==='tsave'){
@@ -981,6 +1062,8 @@ document.addEventListener('change',e=>{
  if(t.dataset.logM!=null){J.updateEntry(DB,S.date,t.dataset.logM,{meal:t.value||null});render();return}
  if(t.id==='dpick'){if(J.isKey(t.value))setDate(t.value);else render();return}
  if(t.id==='meal'){S.meal=t.value;return}
+ if(t.id==='scancam'||t.id==='scanfile'){const f=t.files&&t.files[0];t.value='';if(f)scanPhoto(f);return}
+ if(t.dataset.scanI!=null){const x=S.scan&&S.scan.items[+t.dataset.scanI];if(x)x.sel=t.checked;return}
  if(t.id==='amt'){S.amt=clampA(readAmt(),S.unit);t.value=fmtN(S.amt);updPv();return}
  if(t.id==='wkType')S.wkType=t.value;
  if(t.id==='wkMuscle')S.wkMuscle=t.value;
