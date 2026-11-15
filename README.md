@@ -1,6 +1,6 @@
 # Baskt
 
-Nutrition tracking prototype with USDA/Open Food Facts search, barcode lookup, and post-workout meal suggestions.
+Nutrition tracking prototype with USDA/Open Food Facts search, barcode lookup, and post-workout meal suggestions on the **Gaps** tab.
 
 ## Setup
 

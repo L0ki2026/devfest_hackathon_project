@@ -143,14 +143,34 @@ function postWorkoutPlanLocal(type,min,intensity,muscle){
   disclaimer:'General wellness suggestion only—not individualized sports nutrition or medical advice.'
  };
 }
+function workoutSection(){
+ return `<div class="card"><h2>Post-workout meal plan</h2>
+  <p class="sub">Pick workout details—we'll suggest a post-workout meal from intensity and target muscles.</p>
+  <label class="sub" for="wkMin">Duration (minutes)</label>
+  <input id="wkMin" type="number" min="5" max="300" step="5" value="${S.wkMin}" aria-label="Workout duration in minutes">
+  <label class="sub" for="wkType" style="margin-top:8px;display:block">Workout type</label>
+  <select id="wkType" aria-label="Workout type">${Object.entries(WK_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkType===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
+  <label class="sub" for="wkIntensity" style="margin-top:8px;display:block">Intensity</label>
+  <select id="wkIntensity" aria-label="Workout intensity"><option value="low" ${S.wkIntensity==='low'?'selected':''}>Low</option><option value="moderate" ${S.wkIntensity==='moderate'?'selected':''}>Moderate</option><option value="high" ${S.wkIntensity==='high'?'selected':''}>High</option></select>
+  <label class="sub" for="wkMuscle" style="margin-top:8px;display:block">Target muscle group</label>
+  <select id="wkMuscle" aria-label="Target muscle group">${Object.entries(MUSCLE_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkMuscle===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
+  <div style="margin-top:10px"><button data-act="wkmeal">Suggest post-workout meal</button></div>
+  ${S.msgWk?`<p class="sub">${esc(S.msgWk)}</p>`:''}
+  ${S.wkMeal?`<div class="note good"><b>${esc(S.wkMeal.title)}</b><br><small>${esc(S.wkMeal.summary)}</small>
+  <p><b>Focus:</b> ${esc((S.wkMeal.macro_focus||[]).join(', '))}</p>
+  <p><b>Suggested foods:</b> ${esc((S.wkMeal.meal_items||[]).join('; '))}</p>
+  ${(S.wkMeal.pantry_items||[]).length?`<p><b>From your pantry:</b> ${esc(S.wkMeal.pantry_items.join(', '))}</p>`:''}
+  ${(S.wkMeal.notes||[]).map(n=>`<p class="sub">${esc(n)}</p>`).join('')}
+  <p class="fine">${esc(S.wkMeal.disclaimer||'')}</p></div>`:''}</div>`;
+}
 function view(){
  const t=tot();
  if(S.tab==='log'){
   const rows=['kcal','p','c','f'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${r1(t[k])}${U[k]}</span></div>`).join('');
   return `<h1>Baskt</h1><p class="sub">Quality and nutrients, tracked together.</p>
   <div class="label"><div class="big"><span>Calories</span><b>${Math.round(t.kcal)}</b></div>${rows}</div>
-  <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div>
-  </div></div>${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}
+  <div class="card"><h2>Add food</h2><div class="flex"><input id="q" type="text" value="${esc(S.q||'')}" placeholder="Search USDA and Open Food Facts" aria-label="Search foods"><button data-act="srch">Search</button></div>${srch()}<div class="flex" style="margin-top:10px"><select id="add" aria-label="Quick add">${opts()}</select><button class="ghost" data-act="add">Add</button></div></div>
+  ${S.msg?`<div class="note warn">${esc(S.msg)}</div>`:''}
   <div class="card"><h2>Logged</h2>${S.log.length?S.log.map((e,i)=>{const f=F[e.id],fl=flags(f);return`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} × ${e.q} · ${Math.round(f.kcal*e.q)} kcal</small>${fl.map(x=>`<span class="tag flag">${esc(x)}</span>`).join('')}</div><button class="ghost sm" data-act="rm" data-i="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></div>`}).join(''):'<div class="empty">Nothing logged yet. Add a food above.</div>'}</div>`}
  if(S.tab==='quality'){
   const bad=S.log.filter(e=>flags(F[e.id]).length);
@@ -170,30 +190,13 @@ function view(){
   </div>
   <div id="barcodeout"></div>
 </div>
-<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>
-  <div class="card"><h2>Post-workout meal plan</h2>
-  <p class="sub">Pick workout details—we'll suggest a post-workout meal from intensity and target muscles.</p>
-  <label class="sub" for="wkMin">Duration (minutes)</label>
-  <input id="wkMin" type="number" min="5" max="300" step="5" value="${S.wkMin}" aria-label="Workout duration in minutes">
-  <label class="sub" for="wkType" style="margin-top:8px;display:block">Workout type</label>
-  <select id="wkType" aria-label="Workout type">${Object.entries(WK_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkType===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
-  <label class="sub" for="wkIntensity" style="margin-top:8px;display:block">Intensity</label>
-  <select id="wkIntensity" aria-label="Workout intensity"><option value="low" ${S.wkIntensity==='low'?'selected':''}>Low</option><option value="moderate" ${S.wkIntensity==='moderate'?'selected':''}>Moderate</option><option value="high" ${S.wkIntensity==='high'?'selected':''}>High</option></select>
-  <label class="sub" for="wkMuscle" style="margin-top:8px;display:block">Target muscle group</label>
-  <select id="wkMuscle" aria-label="Target muscle group">${Object.entries(MUSCLE_LABELS).map(([k,v])=>`<option value="${k}" ${S.wkMuscle===k?'selected':''}>${esc(v)}</option>`).join('')}</select>
-  <div style="margin-top:10px"><button data-act="wkmeal">Suggest post-workout meal</button></div>
-  ${S.msgWk?`<p class="sub">${esc(S.msgWk)}</p>`:''}
-  ${S.wkMeal?`<div class="note good"><b>${esc(S.wkMeal.title)}</b><br><small>${esc(S.wkMeal.summary)}</small>
-  <p><b>Focus:</b> ${esc((S.wkMeal.macro_focus||[]).join(', '))}</p>
-  <p><b>Suggested foods:</b> ${esc((S.wkMeal.meal_items||[]).join('; '))}</p>
-  ${(S.wkMeal.pantry_items||[]).length?`<p><b>From your pantry:</b> ${esc(S.wkMeal.pantry_items.join(', '))}</p>`:''}
-  ${(S.wkMeal.notes||[]).map(n=>`<p class="sub">${esc(n)}</p>`).join('')}
-  <p class="fine">${esc(S.wkMeal.disclaimer||'')}</p></div>`:''}</div>`}
+<div class="card"><h2>Pairings in today’s log</h2>${pairs().length?pairs().map(p=>`<div class="note ${p[0]}">${esc(p[1])}</div>`).join(''):'<div class="empty">Log an iron-rich food to see pairing tips.</div>'}</div>`}
  if(S.tab==='gaps'){
   const g=gaps(),all=['p','fib','fe','vc','ca'].map(k=>`<div class="row"><span>${N[k]}</span><div class="bar ${t[k]/T[k]<.6?'low':''}"><i style="width:${Math.min(100,t[k]/T[k]*100)}%"></i></div><span class="num">${Math.round(t[k]/T[k]*100)}%</span></div>`).join('');
-  return `<h1>Gaps</h1><p class="sub">What today’s log is missing, with pantry-first ideas.</p>
+  return `<h1>Gaps</h1><p class="sub">Nutrient gaps in your log, post-workout fuel, and pantry-first ideas.</p>
   <div class="label"><div class="big"><span>Today's Log</span></div>${all}</div>
-  ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You’re above 60% on every tracked nutrient.</div>'}`
+  ${g.map(k=>`<div class="card"><h2>Low on ${N[k].toLowerCase()}</h2>${suggest(k).map(f=>`<div class="item"><div>${esc(f.name)}<small>${esc(f.srv)} · ${r1(f[k])}${U[k]}</small></div>${S.pantry.includes(f.id)?'<span class="tag">In pantry</span>':`<button class="ghost sm" data-act="padd" data-id="${f.id}">Add to pantry</button>`}</div>`).join('')}</div>`).join('')||'<div class="note good">You are above 60% on every tracked nutrient.</div>'}
+  ${workoutSection()}`}
  if(S.tab==='pantry'){
   return `<h1>Pantry</h1><p class="sub">Groceries you already have. Suggestions use these first.</p>
   <div class="card"><div class="flex"><select id="padd" aria-label="Add to pantry">${opts()}</select><button data-act="pantryadd">Add</button></div></div>
